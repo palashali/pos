@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Phone, Mail, MapPin, History, X } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -14,10 +15,8 @@ export default function Customers() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch('/api/customers', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setCustomers(await response.json());
+      const data = await apiFetch('/api/customers');
+      setCustomers(data);
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
@@ -25,10 +24,8 @@ export default function Customers() {
 
   const fetchHistory = async (customerId: number) => {
     try {
-      const response = await fetch(`/api/customers/${customerId}/history`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setHistory(await response.json());
+      const data = await apiFetch(`/api/customers/${customerId}/history`);
+      setHistory(data);
     } catch (error) {
       console.error('Error fetching history:', error);
     }
@@ -40,21 +37,15 @@ export default function Customers() {
     const data = Object.fromEntries(formData.entries());
 
     try {
-      const response = await fetch('/api/customers', {
+      await apiFetch('/api/customers', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(data)
       });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        fetchCustomers();
-      }
-    } catch (error) {
+      setIsModalOpen(false);
+      fetchCustomers();
+    } catch (error: any) {
       console.error('Error saving customer:', error);
+      alert(error.message || 'Failed to save customer');
     }
   };
 

@@ -9,8 +9,8 @@ import {
   ArrowRight,
   Filter
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Reports() {
   const [sales, setSales] = useState([]);
@@ -50,7 +50,7 @@ export default function Reports() {
     const matchesDate = (!filters.startDate || saleDateStr >= filters.startDate) &&
                       (!filters.endDate || saleDateStr <= filters.endDate);
     const matchesCustomer = !filters.customer || (sale.customer_name || 'Walk-in').toLowerCase().includes(filters.customer.toLowerCase());
-    const matchesStaff = !filters.staff || sale.staff_name.toLowerCase().includes(filters.staff.toLowerCase());
+    const matchesStaff = !filters.staff || (sale.staff_name || '').toLowerCase().includes(filters.staff.toLowerCase());
     const matchesYear = !filters.year || saleYear === filters.year;
     const matchesMonth = !filters.month || saleMonth === filters.month;
 
@@ -58,31 +58,36 @@ export default function Reports() {
   });
 
   const exportToPDF = () => {
-    const doc = new jsPDF() as any;
-    doc.setFontSize(20);
-    doc.text('NexusPOS Pro - Sales Report', 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    try {
+      const doc = new jsPDF() as any;
+      doc.setFontSize(20);
+      doc.text('NexusPOS Pro - Sales Report', 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
 
-    const tableData = filteredSales.map((sale: any) => [
-      sale.id,
-      new Date(sale.created_at).toLocaleDateString(),
-      sale.customer_name || 'Walk-in',
-      sale.staff_name,
-      sale.payment_method.toUpperCase(),
-      `৳${sale.final_amount.toFixed(2)}`
-    ]);
+      const tableData = filteredSales.map((sale: any) => [
+        sale.id,
+        new Date(sale.created_at).toLocaleDateString(),
+        sale.customer_name || 'Walk-in',
+        sale.staff_name || 'Unknown',
+        sale.payment_method?.toUpperCase() || 'N/A',
+        `৳${sale.final_amount?.toFixed(2) || '0.00'}`
+      ]);
 
-    doc.autoTable({
-      startY: 40,
-      head: [['ID', 'Date', 'Customer', 'Staff', 'Payment', 'Total']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] }
-    });
+      autoTable(doc, {
+        startY: 40,
+        head: [['ID', 'Date', 'Customer', 'Staff', 'Payment', 'Total']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229] }
+      });
 
-    doc.save(`sales-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`sales-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   if (loading) return <div>Loading reports...</div>;

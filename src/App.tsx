@@ -35,6 +35,7 @@ import Settings from './pages/Settings';
 import Workers from './pages/Workers';
 import SalesHistory from './pages/SalesHistory';
 import Expenses from './pages/Expenses';
+import AddProduct from './pages/AddProduct';
 import Login from './pages/Login';
 
 // Components
@@ -78,6 +79,7 @@ const Layout = ({ children, user, onLogout, shopName }: any) => {
             <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" active={location.pathname === '/'} />
             <SidebarItem icon={ShoppingCart} label="POS Screen" to="/pos" active={location.pathname === '/pos'} />
             <SidebarItem icon={Package} label="Inventory" to="/products" active={location.pathname === '/products'} />
+            <SidebarItem icon={Plus} label="Add Product" to="/add-product" active={location.pathname === '/add-product'} />
             <SidebarItem icon={Users} label="Customers" to="/customers" active={location.pathname === '/customers'} />
             <SidebarItem icon={History} label="Sales History" to="/sales-history" active={location.pathname === '/sales-history'} />
             {isAdmin && <SidebarItem icon={Wallet} label="Expenses" to="/expenses" active={location.pathname === '/expenses'} />}
@@ -215,6 +217,8 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/products" element={<Products />} />
+                  <Route path="/add-product" element={<AddProduct />} />
+                  <Route path="/edit-product/:id" element={isAdmin ? <AddProduct /> : <Navigate to="/products" />} />
                   <Route path="/pos" element={<POS />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/sales-history" element={<SalesHistory />} />

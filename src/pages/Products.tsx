@@ -1,32 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, Edit, Package, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Trash2, Edit, Package, AlertCircle, ArrowUpDown, X, History } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function Products() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyData, setHistoryData] = useState<any>(null);
+  const [adjustingProduct, setAdjustingProduct] = useState<any>(null);
+  const [stockAdjustment, setStockAdjustment] = useState({ quantity: '', reason: '' });
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
 
+  const handleApprove = async (id: number) => {
+    try {
+      await apiFetch(`/api/products/${id}/approve`, { method: 'POST' });
+      fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to approve product');
+    }
+  };
+
+  const handleViewHistory = async (product: any) => {
+    try {
+      const data = await apiFetch(`/api/products/${product.id}/history`);
+      setHistoryData(data);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      alert('Failed to load product history');
+    }
+  };
+
   useEffect(() => {
+    const storedUser = localStorage.getItem('nexus_user');
+    if (storedUser) setUser(JSON.parse(storedUser));
     fetchData();
   }, []);
 
+  const isAdmin = user?.role === 'admin';
+
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('nexus_token');
-      const [prodRes, catRes] = await Promise.all([
-        fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } })
+      const [prodData, catData] = await Promise.all([
+        apiFetch('/api/products'),
+        apiFetch('/api/categories')
       ]);
-      
-      if (!prodRes.ok || !catRes.ok) throw new Error('Failed to fetch data');
-      
-      const prodData = await prodRes.json();
-      const catData = await catRes.json();
       setProducts(prodData);
       setCategories(catData);
     } catch (error) {
@@ -75,33 +100,32 @@ export default function Products() {
     }
   };
 
-  const handleSubmit = async (e: any) => {
+  const handleStockAdjust = async (e: any) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const token = localStorage.getItem('nexus_token');
-    
-    const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
-    const method = editingProduct ? 'PUT' : 'POST';
-
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+      const response = await fetch(`/api/products/${adjustingProduct.id}/adjust-stock`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
+        },
+        body: JSON.stringify({
+          quantity: Number(stockAdjustment.quantity),
+          reason: stockAdjustment.reason
+        })
       });
 
       if (response.ok) {
-        setIsModalOpen(false);
-        setEditingProduct(null);
+        setIsStockModalOpen(false);
+        setAdjustingProduct(null);
+        setStockAdjustment({ quantity: '', reason: '' });
         fetchData();
-        alert(editingProduct ? 'Product updated!' : 'Product added!');
       } else {
         const err = await response.json();
-        alert(err.message || 'Failed to save product. Please check all fields.');
+        alert(err.message || 'Failed to adjust stock');
       }
     } catch (error) {
-      console.error('Error saving product:', error);
-      alert('Network error. Could not save product.');
+      console.error('Error adjusting stock:', error);
     }
   };
 
@@ -137,7 +161,7 @@ export default function Products() {
             Categories
           </button>
           <button 
-            onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
+            onClick={() => navigate('/add-product')}
             className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
           >
             <Plus size={20} />
@@ -198,28 +222,63 @@ export default function Products() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {product.stock <= product.low_stock_threshold ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-50 text-rose-600 text-xs font-bold">
-                        <AlertCircle size={12} />
-                        Low Stock
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
-                        In Stock
-                      </span>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {product.stock <= product.low_stock_threshold ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-rose-50 text-rose-600 text-xs font-bold w-fit">
+                          <AlertCircle size={12} />
+                          Low Stock
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold w-fit">
+                          In Stock
+                        </span>
+                      )}
+                      {product.is_approved === 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-bold w-fit">
+                          Pending Approval
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {isAdmin && product.is_approved === 0 && (
+                        <button 
+                          onClick={() => handleApprove(product.id)}
+                          className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all"
+                        >
+                          Approve
+                        </button>
+                      )}
                       <button 
-                        onClick={() => { setEditingProduct(product); setIsModalOpen(true); }}
+                        onClick={() => handleViewHistory(product)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="View History"
+                      >
+                        <History size={18} />
+                      </button>
+                      <button 
+                        onClick={() => { 
+                          setAdjustingProduct(product); 
+                          setStockAdjustment({ quantity: '', reason: '' });
+                          setIsStockModalOpen(true); 
+                        }}
+                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        title="Adjust Stock"
+                      >
+                        <ArrowUpDown size={18} />
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/edit-product/${product.id}`)}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        title="Edit Product"
                       >
                         <Edit size={18} />
                       </button>
                       <button 
                         onClick={() => handleDelete(product.id)}
                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                        title="Delete Product"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -231,6 +290,134 @@ export default function Products() {
           </table>
         </div>
       </div>
+
+      {/* Stock Adjustment Modal */}
+      {isStockModalOpen && adjustingProduct && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Adjust Stock</h2>
+              <button onClick={() => setIsStockModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="text-sm text-slate-500">Product</div>
+                <div className="font-bold text-slate-900">{adjustingProduct.name}</div>
+                <div className="flex justify-between mt-2 text-sm">
+                  <span className="text-slate-500">Current Stock:</span>
+                  <span className="font-bold text-slate-900">{adjustingProduct.stock}</span>
+                </div>
+              </div>
+              
+              <form onSubmit={handleStockAdjust} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Adjustment Quantity</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      required 
+                      placeholder="e.g. 5 or -3"
+                      className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      value={stockAdjustment.quantity}
+                      onChange={(e) => setStockAdjustment({ ...stockAdjustment, quantity: e.target.value })}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500">Use positive numbers to add stock, negative to reduce.</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Reason (Optional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. New shipment, Damaged goods"
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    value={stockAdjustment.reason}
+                    onChange={(e) => setStockAdjustment({ ...stockAdjustment, reason: e.target.value })}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button type="button" onClick={() => setIsStockModalOpen(false)} className="px-6 py-2 rounded-xl border border-slate-200 text-slate-600">Cancel</button>
+                  <button type="submit" className="px-6 py-2 rounded-xl bg-indigo-600 text-white font-bold">Save Adjustment</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {isHistoryModalOpen && historyData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <History className="text-indigo-600" />
+                Product History
+              </h2>
+              <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="mb-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                <h3 className="font-bold text-indigo-900 mb-2">Product Details</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-indigo-600/70 block">Added By</span>
+                    <span className="font-medium text-indigo-900">{historyData.product.added_by_name || 'System / Unknown'}</span>
+                  </div>
+                  <div>
+                    <span className="text-indigo-600/70 block">Added On</span>
+                    <span className="font-medium text-indigo-900">
+                      {new Date(historyData.product.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-indigo-600/70 block">Purchase Price (Cost)</span>
+                    <span className="font-medium text-indigo-900">৳{historyData.product.cost_price?.toFixed(2) || '0.00'}</span>
+                  </div>
+                  <div>
+                    <span className="text-indigo-600/70 block">Selling Price</span>
+                    <span className="font-medium text-indigo-900">৳{historyData.product.price?.toFixed(2) || '0.00'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="font-bold text-slate-900 mb-4">Stock Adjustment Logs</h3>
+              {historyData.logs && historyData.logs.length > 0 ? (
+                <div className="space-y-3">
+                  {historyData.logs.map((log: any) => (
+                    <div key={log.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            log.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {log.type === 'in' ? 'Stock In' : 'Stock Out'}
+                          </span>
+                          <span className="font-bold text-slate-900">{log.quantity} units</span>
+                        </div>
+                        <div className="text-sm text-slate-600">{log.reason || 'No reason provided'}</div>
+                        {log.type === 'in' && (log.cost_price !== null || log.price !== null) && (
+                          <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                            {log.cost_price !== null && <span>Cost: ৳{log.cost_price.toFixed(2)}</span>}
+                            {log.price !== null && <span>Selling: ৳{log.price.toFixed(2)}</span>}
+                          </div>
+                        )}
+                        <div className="text-xs text-slate-400 mt-1">By: {log.user_name || 'Unknown'}</div>
+                      </div>
+                      <div className="text-xs text-slate-500 text-right">
+                        {new Date(log.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-500 text-center py-8 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                  No stock adjustment history found.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Modal */}
       {isCategoryModalOpen && (
@@ -275,72 +462,6 @@ export default function Products() {
           </div>
         </div>
       )}
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Product Name</label>
-                  <input name="name" defaultValue={editingProduct?.name} required className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Category</label>
-                  <select name="category_id" defaultValue={editingProduct?.category_id} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
-                    <option value="">Select Category</option>
-                    {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Barcode</label>
-                  <input name="barcode" defaultValue={editingProduct?.barcode} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Selling Price</label>
-                  <input name="price" type="number" step="0.01" defaultValue={editingProduct?.price} required className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Cost Price</label>
-                  <input name="cost_price" type="number" step="0.01" defaultValue={editingProduct?.cost_price} required className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Initial Stock</label>
-                  <input name="stock" type="number" defaultValue={editingProduct?.stock || 0} required className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Low Stock Threshold</label>
-                  <input name="low_stock_threshold" type="number" defaultValue={editingProduct?.low_stock_threshold || 5} required className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Product Image</label>
-                  <input name="image" type="file" accept="image/*" className="w-full px-4 py-1.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Description</label>
-                <textarea name="description" defaultValue={editingProduct?.description} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none h-24" />
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" className="px-6 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">Save Product</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-const X = ({ size, className }: any) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="18" y1="6" x2="6" y2="18"></line>
-    <line x1="6" y1="6" x2="18" y2="18"></line>
-  </svg>
-);

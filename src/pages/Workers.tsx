@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Trash2, Shield, Mail, User as UserIcon, X, AlertCircle, Edit, Camera } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function Workers() {
   const [workers, setWorkers] = useState([]);
@@ -15,11 +16,8 @@ export default function Workers() {
 
   const fetchWorkers = async () => {
     try {
-      const response = await fetch('/api/workers', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch workers');
-      setWorkers(await response.json());
+      const data = await apiFetch('/api/workers');
+      setWorkers(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -66,42 +64,25 @@ export default function Workers() {
       const url = editingWorker ? `/api/workers/${editingWorker.id}` : '/api/workers';
       const method = editingWorker ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
+      await apiFetch(url, {
         method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(data)
       });
 
-      if (response.ok) {
-        setIsModalOpen(false);
-        fetchWorkers();
-      } else {
-        const errData = await response.json();
-        setError(errData.message || 'Operation failed');
-      }
-    } catch (err) {
-      setError('Connection error');
+      setIsModalOpen(false);
+      fetchWorkers();
+    } catch (err: any) {
+      setError(err.message || 'Operation failed');
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to remove this worker?')) return;
     try {
-      const response = await fetch(`/api/workers/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      if (response.ok) {
-        fetchWorkers();
-      } else {
-        const errData = await response.json();
-        alert(errData.message);
-      }
-    } catch (err) {
-      console.error(err);
+      await apiFetch(`/api/workers/${id}`, { method: 'DELETE' });
+      fetchWorkers();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete worker');
     }
   };
 

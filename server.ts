@@ -42,6 +42,11 @@ async function startServer() {
   app.use("/api/workers", workerRoutes);
   app.use("/api/expenses", expenseRoutes);
 
+  // Handle 404 for API routes
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ message: `API route not found: ${req.originalUrl}` });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -55,6 +60,15 @@ async function startServer() {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
+
+  // Global error handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error(err.stack);
+    res.status(err.status || 500).json({
+      message: err.message || "Internal Server Error",
+      error: process.env.NODE_ENV === "development" ? err : {},
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`NexusPOS Pro running on http://localhost:${PORT}`);

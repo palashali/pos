@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Store, Percent, MapPin, Phone, Camera } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function Settings({ user }: any) {
   const [settings, setSettings] = useState({
@@ -30,10 +31,7 @@ export default function Settings({ user }: any) {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      const data = await response.json();
+      const data = await apiFetch('/api/settings');
       setSettings({
         ...data,
         vat_enabled: data.vat_enabled === 1,
@@ -50,20 +48,14 @@ export default function Settings({ user }: any) {
     e.preventDefault();
     setSaving(true);
     try {
-      const response = await fetch('/api/settings', {
+      await apiFetch('/api/settings', {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(settings)
       });
-      if (response.ok) {
-        window.dispatchEvent(new Event('shop_settings_updated'));
-        alert('Settings updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error updating settings:', error);
+      window.dispatchEvent(new Event('shop_settings_updated'));
+      alert('Settings updated successfully!');
+    } catch (error: any) {
+      alert(error.message || 'Failed to update settings');
     } finally {
       setSaving(false);
     }
@@ -73,19 +65,13 @@ export default function Settings({ user }: any) {
     e.preventDefault();
     setSaving(true);
     try {
-      const response = await fetch('/api/workers/profile', {
+      await apiFetch('/api/workers/profile', {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(profile)
       });
-      if (response.ok) {
-        alert('Profile updated successfully! Please log in again to see changes.');
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
+      alert('Profile updated successfully! Please log in again to see changes.');
+    } catch (error: any) {
+      alert(error.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }

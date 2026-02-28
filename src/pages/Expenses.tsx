@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, DollarSign, Calendar, Tag, FileText, X, Search, Filter, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [filters, setFilters] = useState({
@@ -88,12 +89,16 @@ export default function Expenses() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure?')) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async (id: number) => {
     try {
       await fetch(`/api/expenses/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
       });
+      setDeleteConfirmId(null);
       fetchExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
@@ -129,7 +134,7 @@ export default function Expenses() {
         `TK ${expense.amount.toFixed(2)}`
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 40,
@@ -147,7 +152,6 @@ export default function Expenses() {
       doc.save(`expenses_report_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('PDF Export Error:', error);
-      alert('Failed to generate PDF. Please try again.');
     }
   };
 
@@ -285,6 +289,19 @@ export default function Expenses() {
           </tbody>
         </table>
       </div>
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Expense?</h3>
+            <p className="text-slate-500 mb-6">Are you sure you want to delete this expense? This action cannot be undone.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50">Cancel</button>
+              <button onClick={() => confirmDelete(deleteConfirmId)} className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">

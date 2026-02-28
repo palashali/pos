@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Printer, Eye, X, Calendar, Filter } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function SalesHistory() {
   const [sales, setSales] = useState([]);
@@ -15,10 +16,8 @@ export default function SalesHistory() {
 
   const fetchSales = async () => {
     try {
-      const response = await fetch('/api/sales', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setSales(await response.json());
+      const data = await apiFetch('/api/sales');
+      setSales(data);
     } catch (error) {
       console.error('Error fetching sales:', error);
     } finally {
@@ -28,10 +27,8 @@ export default function SalesHistory() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setSettings(await response.json());
+      const data = await apiFetch('/api/settings');
+      setSettings(data);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -39,10 +36,8 @@ export default function SalesHistory() {
 
   const fetchSaleDetails = async (id: number) => {
     try {
-      const response = await fetch(`/api/sales/${id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setSelectedSale(await response.json());
+      const data = await apiFetch(`/api/sales/${id}`);
+      setSelectedSale(data);
     } catch (error) {
       console.error('Error fetching sale details:', error);
     }

@@ -12,6 +12,7 @@ import {
   X,
   Barcode
 } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function POS() {
   const [products, setProducts] = useState([]);
@@ -21,6 +22,8 @@ export default function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [discount, setDiscount] = useState(0);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
@@ -40,10 +43,8 @@ export default function POS() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setSettings(await response.json());
+      const data = await apiFetch('/api/settings');
+      setSettings(data);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -51,13 +52,12 @@ export default function POS() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('nexus_token');
-      const [prodRes, custRes] = await Promise.all([
-        fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/customers', { headers: { 'Authorization': `Bearer ${token}` } })
+      const [prodData, custData] = await Promise.all([
+        apiFetch('/api/products?approved_only=true'),
+        apiFetch('/api/customers')
       ]);
-      setProducts(await prodRes.json());
-      setCustomers(await custRes.json());
+      setProducts(prodData);
+      setCustomers(custData);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -122,12 +122,8 @@ export default function POS() {
 
   const handleCheckout = async () => {
     try {
-      const response = await fetch('/api/sales', {
+      const result = await apiFetch('/api/sales', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify({
           customer_id: selectedCustomer?.id || null,
           items: cart,
@@ -139,21 +135,15 @@ export default function POS() {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        // Fetch full sale details for receipt
-        const saleRes = await fetch(`/api/sales/${result.id}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-        });
-        const saleData = await saleRes.json();
-        setLastSale(saleData);
-        setCart([]);
-        setSelectedCustomer(null);
-        setDiscount(0);
-        setIsCheckoutModalOpen(false);
-        setIsReceiptModalOpen(true);
-        fetchData(); // Refresh stock
-      }
+      // Fetch full sale details for receipt
+      const saleData = await apiFetch(`/api/sales/${result.id}`);
+      setLastSale(saleData);
+      setCart([]);
+      setSelectedCustomer(null);
+      setDiscount(0);
+      setIsCheckoutModalOpen(false);
+      setIsReceiptModalOpen(true);
+      fetchData(); // Refresh stock
     } catch (error) {
       console.error('Checkout error:', error);
     }
@@ -214,6 +204,24 @@ export default function POS() {
         addToCart(product);
         setSearchTerm('');
       }
+    }
+  };
+
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const result = await apiFetch('/api/customers', {
+        method: 'POST',
+        body: JSON.stringify(newCustomer)
+      });
+
+      setCustomers([...customers, result] as any);
+      setSelectedCustomer(result);
+      setIsAddCustomerModalOpen(false);
+      setNewCustomer({ name: '', phone: '', email: '' });
+    } catch (error: any) {
+      console.error('Error adding customer:', error);
+      alert(error.message || 'Failed to add customer');
     }
   };
 
@@ -353,9 +361,19 @@ export default function POS() {
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Select Customer (Optional)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700">Select Customer (Optional)</label>
+                  <button 
+                    onClick={() => setIsAddCustomerModalOpen(true)}
+                    className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline"
+                  >
+                    <Plus size={12} />
+                    Add New
+                  </button>
+                </div>
                 <select 
                   className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={selectedCustomer?.id || ''}
                   onChange={(e) => setSelectedCustomer(customers.find((c: any) => c.id === Number(e.target.value)))}
                 >
                   <option value="">Walk-in Customer</option>
@@ -397,6 +415,53 @@ export default function POS() {
                 Confirm & Print Receipt
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Customer Modal */}
+      {isAddCustomerModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Add New Customer</h2>
+              <button onClick={() => setIsAddCustomerModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleAddCustomer} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Customer Name *</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={newCustomer.name}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Phone Number *</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Email (Optional)</label>
+                <input 
+                  type="email" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={newCustomer.email}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setIsAddCustomerModalOpen(false)} className="px-6 py-2 rounded-xl border border-slate-200 text-slate-600">Cancel</button>
+                <button type="submit" className="px-6 py-2 rounded-xl bg-indigo-600 text-white font-bold">Save Customer</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

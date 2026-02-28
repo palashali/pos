@@ -133,6 +133,22 @@ try {
   // Column already exists
 }
 
+// Migration: Add is_approved and added_by to products if they don't exist
+try {
+  db.prepare('ALTER TABLE products ADD COLUMN is_approved INTEGER DEFAULT 1').run();
+  db.prepare('ALTER TABLE products ADD COLUMN added_by INTEGER').run();
+} catch (e) {
+  // Columns already exist
+}
+
+// Migration: Add cost_price and price to stock_logs
+try {
+  db.prepare('ALTER TABLE stock_logs ADD COLUMN cost_price REAL').run();
+  db.prepare('ALTER TABLE stock_logs ADD COLUMN price REAL').run();
+} catch (e) {
+  // Columns already exist
+}
+
 // Seed default settings if not exists
 const settingsExist = db.prepare('SELECT * FROM settings WHERE id = 1').get();
 if (!settingsExist) {
