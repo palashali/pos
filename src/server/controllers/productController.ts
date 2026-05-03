@@ -41,12 +41,13 @@ export const createProduct = (req: any, res: any) => {
   const image_url = req.file ? `/uploads/${req.file.filename}` : null;
   const is_approved = req.user.role === 'admin' ? 1 : 0;
   const added_by = req.user.id;
+  const approval_type = 'Add Product';
 
   try {
     const result = db.prepare(`
-      INSERT INTO products (name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by);
+      INSERT INTO products (name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by, approval_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by, approval_type);
 
     // Log initial stock
     if (stock > 0) {
@@ -74,11 +75,14 @@ export const updateProduct = (req: any, res: any) => {
   try {
     const currentProduct: any = db.prepare('SELECT stock FROM products WHERE id = ?').get(req.params.id);
     
+    let is_approved_val = req.user.role === 'admin' ? 1 : 0;
+    let approval_type_val = 'Edit Product';
+    
     let query = `
       UPDATE products 
-      SET name = ?, category_id = ?, barcode = ?, description = ?, price = ?, cost_price = ?, stock = ?, low_stock_threshold = ?
+      SET name = ?, category_id = ?, barcode = ?, description = ?, price = ?, cost_price = ?, stock = ?, low_stock_threshold = ?, is_approved = ?, approval_type = ?
     `;
-    const params = [name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold];
+    const params = [name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, is_approved_val, approval_type_val];
 
     if (image_url) {
       query += `, image_url = ?`;
@@ -119,8 +123,10 @@ export const adjustStock = (req: any, res: any) => {
     if (!currentProduct) return res.status(404).json({ message: 'Product not found' });
 
     const newStock = currentProduct.stock + Number(quantity);
+    const is_approved_val = req.user.role === 'admin' ? 1 : 0;
+    const approval_type_val = 'Stock Adjustment';
     
-    db.prepare('UPDATE products SET stock = ? WHERE id = ?').run(newStock, productId);
+    db.prepare('UPDATE products SET stock = ?, is_approved = ?, approval_type = ? WHERE id = ?').run(newStock, is_approved_val, approval_type_val, productId);
 
     db.prepare('INSERT INTO stock_logs (product_id, user_id, type, quantity, reason, cost_price, price) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
       productId,

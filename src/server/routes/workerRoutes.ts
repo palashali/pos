@@ -4,7 +4,7 @@ import { verifyToken, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/', verifyToken, isAdmin, getWorkers);
+router.get('/', verifyToken, getWorkers);
 router.post('/', verifyToken, isAdmin, createWorker);
 router.put('/profile', verifyToken, updateProfile);
 router.put('/:id', verifyToken, isAdmin, updateWorker);

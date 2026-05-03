@@ -128,7 +128,7 @@ export default function SalesHistory() {
             <tbody className="divide-y divide-slate-100">
               {filteredSales.map((sale: any) => (
                 <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-indigo-600">#{sale.id}</td>
+                  <td className="px-6 py-4 font-bold text-indigo-600">#{String(sale.id).padStart(4, '0')}</td>
                   <td className="px-6 py-4 text-slate-600">{new Date(sale.created_at).toLocaleString()}</td>
                   <td className="px-6 py-4 text-slate-900">{sale.customer_name || 'Walk-in'}</td>
                   <td className="px-6 py-4 text-slate-600">{sale.staff_name}</td>
@@ -164,7 +164,7 @@ export default function SalesHistory() {
                 <p>Tel: {settings?.phone || '+1 234 567 890'}</p>
               </div>
               <div className="border-t border-dashed border-slate-300 py-4 space-y-1">
-                <p>Receipt #: {selectedSale.id}</p>
+                <p>Receipt #: {String(selectedSale.id).padStart(4, '0')}</p>
                 <p>Date: {new Date(selectedSale.created_at).toLocaleString()}</p>
                 <p>Staff: {selectedSale.staff_name}</p>
                 <p>Customer: {selectedSale.customer_name || 'Walk-in'}</p>

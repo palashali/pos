@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, Trash2, Edit, Package, AlertCircle, ArrowUpDown, X, History } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 export default function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Initialize search term if query param filter=pending is present
+  const queryParams = new URLSearchParams(location.search);
+  const initialFilter = queryParams.get('filter') === 'pending' ? 'pending' : '';
+  const [searchTerm, setSearchTerm] = useState(initialFilter);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -65,36 +70,26 @@ export default function Products() {
   const handleCategorySubmit = async (e: any) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/categories', {
+      await apiFetch('/api/categories', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(newCategory)
       });
-
-      if (response.ok) {
-        setNewCategory({ name: '', description: '' });
-        fetchData();
-        alert('Category added successfully!');
-      } else {
-        const err = await response.json();
-        alert(err.message || 'Failed to add category');
-      }
-    } catch (error) {
+      setNewCategory({ name: '', description: '' });
+      fetchData();
+      alert('Category added successfully!');
+    } catch (error: any) {
       console.error('Error adding category:', error);
+      alert(error.message || 'Failed to add category');
     }
   };
 
   const handleCategoryDelete = async (id: number) => {
     if (!confirm('Are you sure? This might affect products in this category.')) return;
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
+      await apiFetch(`/api/categories/${id}`, {
+        method: 'DELETE'
       });
-      if (response.ok) fetchData();
+      fetchData();
     } catch (error) {
       console.error('Error deleting category:', error);
     }
@@ -103,29 +98,27 @@ export default function Products() {
   const handleStockAdjust = async (e: any) => {
     e.preventDefault();
     try {
-      const response = await fetch(`/api/products/${adjustingProduct.id}/adjust-stock`, {
+      await apiFetch(`/api/products/${adjustingProduct.id}/adjust-stock`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify({
           quantity: Number(stockAdjustment.quantity),
           reason: stockAdjustment.reason
         })
       });
 
-      if (response.ok) {
-        setIsStockModalOpen(false);
-        setAdjustingProduct(null);
-        setStockAdjustment({ quantity: '', reason: '' });
-        fetchData();
+      setIsStockModalOpen(false);
+      setAdjustingProduct(null);
+      setStockAdjustment({ quantity: '', reason: '' });
+      fetchData();
+      
+      if (!isAdmin) {
+        alert('Stock adjustment submitted and pending admin approval!');
       } else {
-        const err = await response.json();
-        alert(err.message || 'Failed to adjust stock');
+        alert('Stock adjusted successfully!');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adjusting stock:', error);
+      alert(error.message || 'Failed to adjust stock');
     }
   };
 
@@ -133,20 +126,20 @@ export default function Products() {
     if (!confirm('Are you sure you want to delete this product?')) return;
     
     try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
+      await apiFetch(`/api/products/${id}`, {
+        method: 'DELETE'
       });
-      if (response.ok) fetchData();
+      fetchData();
     } catch (error) {
       console.error('Error deleting product:', error);
     }
   };
 
-  const filteredProducts = products.filter((p: any) => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter((p: any) => {
+    if (searchTerm.toLowerCase() === 'pending' && p.is_approved === 0) return true;
+    return p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           p.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="space-y-6">
@@ -234,8 +227,8 @@ export default function Products() {
                         </span>
                       )}
                       {product.is_approved === 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-bold w-fit">
-                          Pending Approval
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-bold w-fit" title={`Pending: ${product.approval_type || 'Add Product'}`}>
+                          Pending {product.approval_type ? `(${product.approval_type})` : 'Approval'}
                         </span>
                       )}
                     </div>

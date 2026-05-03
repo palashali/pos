@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
+import { apiFetch } from '../utils/api';
 
 export default function Login({ onLogin }: any) {
   const [email, setEmail] = useState('admin@nexuspos.com');
@@ -14,21 +15,13 @@ export default function Login({ onLogin }: any) {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const data = await apiFetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        onLogin(data.user, data.token);
-      } else {
-        setError(data.message || 'Login failed');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
+      onLogin(data.user, data.token);
+    } catch (err: any) {
+      setError(err.message || 'Connection error. Please try again.');
     } finally {
       setLoading(false);
     }

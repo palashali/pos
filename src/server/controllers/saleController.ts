@@ -45,13 +45,22 @@ export const createSale = (req: any, res: any) => {
 };
 
 export const getSales = (req: any, res: any) => {
-  const sales = db.prepare(`
+  let query = `
     SELECT s.*, u.name as staff_name, c.name as customer_name 
     FROM sales s 
     JOIN users u ON s.user_id = u.id 
     LEFT JOIN customers c ON s.customer_id = c.id
-    ORDER BY s.created_at DESC
-  `).all();
+  `;
+  const params: any[] = [];
+  
+  if (req.user && req.user.role === 'staff') {
+    query += ` WHERE s.user_id = ? `;
+    params.push(req.user.id);
+  }
+  
+  query += ` ORDER BY s.created_at DESC`;
+
+  const sales = db.prepare(query).all(...params);
   res.json(sales);
 };
 
@@ -62,9 +71,12 @@ export const getSaleDetails = (req: any, res: any) => {
     JOIN users u ON s.user_id = u.id 
     LEFT JOIN customers c ON s.customer_id = c.id
     WHERE s.id = ?
-  `).get(req.params.id);
+  `).get(req.params.id) as any;
 
   if (!sale) return res.status(404).json({ message: 'Sale not found' });
+  if (req.user && req.user.role === 'staff' && sale.user_id !== req.user.id) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
 
   const items = db.prepare(`
     SELECT si.*, p.name as product_name 

@@ -143,7 +143,7 @@ export default function Customers() {
                       history.map((sale: any) => (
                         <div key={sale.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-slate-500">Sale #{sale.id}</span>
+                            <span className="text-xs font-bold text-slate-500">Sale #{String(sale.id).padStart(4, '0')}</span>
                             <span className="text-sm font-bold text-indigo-600">৳{sale.final_amount.toFixed(2)}</span>
                           </div>
                           <p className="text-xs text-slate-400">{new Date(sale.created_at).toLocaleDateString()}</p>

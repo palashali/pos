@@ -37,11 +37,13 @@ import SalesHistory from './pages/SalesHistory';
 import Expenses from './pages/Expenses';
 import AddProduct from './pages/AddProduct';
 import Login from './pages/Login';
+import { apiFetch } from './utils/api';
 
 // Components
-const SidebarItem = ({ icon: Icon, label, to, active }: any) => (
+const SidebarItem = ({ icon: Icon, label, to, active, onClick }: any) => (
   <Link 
     to={to}
+    onClick={onClick}
     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
       active 
         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
@@ -58,34 +60,53 @@ const Layout = ({ children, user, onLogout, shopName }: any) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isAdmin = user?.role === 'admin';
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          <div className="p-6">
+          <div className="p-6 flex items-center justify-between">
             <div className="flex items-center gap-2 text-indigo-600">
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                 <ShoppingCart size={24} />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900 truncate">{shopName || 'NexusPOS Pro'}</span>
             </div>
+            <button 
+              className="lg:hidden p-2 text-slate-400 hover:text-slate-600 rounded-lg"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <X size={24} />
+            </button>
           </div>
 
           <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-            <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" active={location.pathname === '/'} />
-            <SidebarItem icon={ShoppingCart} label="POS Screen" to="/pos" active={location.pathname === '/pos'} />
-            <SidebarItem icon={Package} label="Inventory" to="/products" active={location.pathname === '/products'} />
-            <SidebarItem icon={Plus} label="Add Product" to="/add-product" active={location.pathname === '/add-product'} />
-            <SidebarItem icon={Users} label="Customers" to="/customers" active={location.pathname === '/customers'} />
-            <SidebarItem icon={History} label="Sales History" to="/sales-history" active={location.pathname === '/sales-history'} />
-            {isAdmin && <SidebarItem icon={Wallet} label="Expenses" to="/expenses" active={location.pathname === '/expenses'} />}
-            {isAdmin && <SidebarItem icon={BarChart3} label="Reports" to="/reports" active={location.pathname === '/reports'} />}
-            <SidebarItem icon={HardHat} label="Workers" to="/workers" active={location.pathname === '/workers'} />
-            <SidebarItem icon={SettingsIcon} label="Settings" to="/settings" active={location.pathname === '/settings'} />
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" active={location.pathname === '/'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={ShoppingCart} label="POS Screen" to="/pos" active={location.pathname === '/pos'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={Package} label="Inventory" to="/products" active={location.pathname === '/products'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={Plus} label="Add Product" to="/add-product" active={location.pathname === '/add-product'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={Users} label="Customers" to="/customers" active={location.pathname === '/customers'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={History} label="Sales History" to="/sales-history" active={location.pathname === '/sales-history'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={Wallet} label="Expenses" to="/expenses" active={location.pathname === '/expenses'} onClick={() => setIsMobileMenuOpen(false)} />
+            {isAdmin && <SidebarItem icon={BarChart3} label="Reports" to="/reports" active={location.pathname === '/reports'} onClick={() => setIsMobileMenuOpen(false)} />}
+            {isAdmin && <SidebarItem icon={HardHat} label="Workers" to="/workers" active={location.pathname === '/workers'} onClick={() => setIsMobileMenuOpen(false)} />}
+            {isAdmin && <SidebarItem icon={SettingsIcon} label="Settings" to="/settings" active={location.pathname === '/settings'} onClick={() => setIsMobileMenuOpen(false)} />}
           </nav>
 
           <div className="p-4 border-t border-slate-100">
@@ -166,19 +187,22 @@ export default function App() {
       if (token) fetchSettings(token);
     };
 
+    const handleAuthError = () => {
+      handleLogout();
+    };
+
     window.addEventListener('shop_settings_updated', handleSettingsUpdate);
-    return () => window.removeEventListener('shop_settings_updated', handleSettingsUpdate);
+    window.addEventListener('auth_error', handleAuthError);
+    return () => {
+      window.removeEventListener('shop_settings_updated', handleSettingsUpdate);
+      window.removeEventListener('auth_error', handleAuthError);
+    };
   }, []);
 
   const fetchSettings = async (token: string) => {
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setShopName(data.shop_name);
-      }
+      const data = await apiFetch('/api/settings');
+      setShopName(data.shop_name);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -218,16 +242,16 @@ export default function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/products" element={<Products />} />
                   <Route path="/add-product" element={<AddProduct />} />
-                  <Route path="/edit-product/:id" element={isAdmin ? <AddProduct /> : <Navigate to="/products" />} />
+                  <Route path="/edit-product/:id" element={<AddProduct />} />
                   <Route path="/pos" element={<POS />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/sales-history" element={<SalesHistory />} />
                   
                   {/* Admin Only Routes */}
                   <Route path="/reports" element={isAdmin ? <Reports /> : <Navigate to="/" />} />
-                  <Route path="/expenses" element={isAdmin ? <Expenses /> : <Navigate to="/" />} />
+                  <Route path="/expenses" element={<Expenses />} />
                   <Route path="/workers" element={isAdmin ? <Workers /> : <Navigate to="/" />} />
-                  <Route path="/settings" element={<Settings user={user} />} />
+                  <Route path="/settings" element={isAdmin ? <Settings user={user} /> : <Navigate to="/" />} />
                 </Routes>
               </Layout>
             ) : (

@@ -20,8 +20,13 @@ import {
 } from 'recharts';
 import { apiFetch } from '../utils/api';
 
-const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: any) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+import { useNavigate } from 'react-router-dom';
+
+const StatCard = ({ title, value, icon: Icon, color, trend, trendValue, onClick }: any) => (
+  <div 
+    className={`bg-white p-6 rounded-2xl border border-slate-100 shadow-sm ${onClick ? 'cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all' : ''}`}
+    onClick={onClick}
+  >
     <div className="flex items-center justify-between mb-4">
       <div className={`p-3 rounded-xl ${color} bg-opacity-10 text-${color.split('-')[1]}-600`}>
         <Icon size={24} />
@@ -39,6 +44,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: any) =
 );
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -73,8 +79,8 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Today's Sales" 
-          value={`৳${stats?.todaySales?.toFixed(2)}`} 
+          title={isAdmin ? "Today's Sales" : "My Sales Today"} 
+          value={`৳${stats?.todaySales?.toFixed(2) || '0.00'}`} 
           icon={DollarSign} 
           color="bg-indigo-500"
           trend="up"
@@ -82,7 +88,7 @@ export default function Dashboard() {
         />
         <StatCard 
           title="Today's Expenses" 
-          value={`৳${stats?.todayExpenses?.toFixed(2)}`} 
+          value={`৳${stats?.todayExpenses?.toFixed(2) || '0.00'}`} 
           icon={ArrowDownRight} 
           color="bg-rose-500"
         />
@@ -104,6 +110,7 @@ export default function Dashboard() {
             value={stats?.pendingApprovals} 
             icon={Package} 
             color="bg-indigo-500"
+            onClick={() => navigate('/products?filter=pending')}
           />
         )}
       </div>

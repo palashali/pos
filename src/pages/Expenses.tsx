@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, DollarSign, Calendar, Tag, FileText, X, Search, Filter, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../utils/api';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -37,10 +38,8 @@ export default function Expenses() {
 
   const fetchWorkers = async () => {
     try {
-      const response = await fetch('/api/workers', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setWorkers(await response.json());
+      const data = await apiFetch('/api/workers');
+      setWorkers(data);
     } catch (error) {
       console.error('Error fetching workers:', error);
     }
@@ -48,10 +47,8 @@ export default function Expenses() {
 
   const fetchExpenses = async () => {
     try {
-      const response = await fetch('/api/expenses', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setExpenses(await response.json());
+      const data = await apiFetch('/api/expenses');
+      setExpenses(data);
     } catch (error) {
       console.error('Error fetching expenses:', error);
     } finally {
@@ -62,27 +59,21 @@ export default function Expenses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/expenses', {
+      await apiFetch('/api/expenses', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` 
-        },
         body: JSON.stringify(newExpense)
       });
-      if (response.ok) {
-        setIsModalOpen(false);
-        setSelectedMonth('');
-        setNewExpense({
-          category: 'Others',
-          amount: '',
-          description: '',
-          month: '',
-          date: new Date().toISOString().split('T')[0],
-          worker_id: ''
-        });
-        fetchExpenses();
-      }
+      setIsModalOpen(false);
+      setSelectedMonth('');
+      setNewExpense({
+        category: 'Others',
+        amount: '',
+        description: '',
+        month: '',
+        date: new Date().toISOString().split('T')[0],
+        worker_id: ''
+      });
+      fetchExpenses();
     } catch (error) {
       console.error('Error creating expense:', error);
     }
@@ -94,9 +85,8 @@ export default function Expenses() {
 
   const confirmDelete = async (id: number) => {
     try {
-      await fetch(`/api/expenses/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
+      await apiFetch(`/api/expenses/${id}`, {
+        method: 'DELETE'
       });
       setDeleteConfirmId(null);
       fetchExpenses();
@@ -125,13 +115,14 @@ export default function Expenses() {
       doc.setTextColor(100);
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
       
-      const tableColumn = ["Date", "Month", "Category", "Description", "Amount"];
+      const tableColumn = ["Date", "Month", "Category", "Description", "Amount", "Added By"];
       const tableRows = filteredExpenses.map((expense: any) => [
         expense.date,
         expense.month || '-',
         expense.category,
         expense.description || '-',
-        `TK ${expense.amount.toFixed(2)}`
+        `TK ${expense.amount.toFixed(2)}`,
+        expense.user_name || '-'
       ]);
 
       autoTable(doc, {
@@ -257,6 +248,7 @@ export default function Expenses() {
               <th className="px-6 py-4">Category</th>
               <th className="px-6 py-4">Description</th>
               <th className="px-6 py-4">Amount</th>
+              <th className="px-6 py-4">Added By</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
@@ -272,6 +264,7 @@ export default function Expenses() {
                 </td>
                 <td className="px-6 py-4 text-slate-600">{expense.description || '-'}</td>
                 <td className="px-6 py-4 font-bold text-rose-600">৳{expense.amount.toFixed(2)}</td>
+                <td className="px-6 py-4 text-slate-600 text-sm font-medium">{expense.user_name || '-'}</td>
                 <td className="px-6 py-4 text-right">
                   <button onClick={() => handleDelete(expense.id)} className="text-slate-300 hover:text-rose-500">
                     <Trash2 size={18} />

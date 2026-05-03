@@ -22,6 +22,9 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
     const data = await response.json();
     
     if (!response.ok) {
+      if (response.status === 401 || data.message === 'Invalid token.') {
+        window.dispatchEvent(new Event('auth_error'));
+      }
       throw new Error(data.message || `API Error: ${response.status}`);
     }
 

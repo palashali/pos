@@ -1,9 +1,7 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import authRoutes from "./src/server/routes/authRoutes";
 import productRoutes from "./src/server/routes/productRoutes";
 import categoryRoutes from "./src/server/routes/categoryRoutes";
@@ -14,17 +12,14 @@ import settingRoutes from "./src/server/routes/settingRoutes";
 import workerRoutes from "./src/server/routes/workerRoutes";
 import expenseRoutes from "./src/server/routes/expenseRoutes";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   // Ensure uploads directory exists
-  const uploadsDir = path.join(__dirname, "uploads");
+  const uploadsDir = path.join(process.env.NODE_ENV === "production" ? "/tmp" : process.cwd(), "uploads");
   if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
+    fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
   app.use(cors());
@@ -49,15 +44,17 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, "dist")));
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 

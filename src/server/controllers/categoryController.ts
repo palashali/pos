@@ -9,7 +9,8 @@ export const createCategory = (req: any, res: any) => {
   const { name, description } = req.body;
   try {
     const result = db.prepare('INSERT INTO categories (name, description) VALUES (?, ?)').run(name, description);
-    res.status(201).json({ id: result.lastInsertRowid });
+    const newCategory = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json(newCategory);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }

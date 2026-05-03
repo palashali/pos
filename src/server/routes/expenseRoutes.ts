@@ -5,7 +5,7 @@ import { verifyToken, isAdmin } from '../middleware/auth';
 const router = express.Router();
 
 router.get('/', verifyToken, getExpenses);
-router.post('/', verifyToken, isAdmin, createExpense);
-router.delete('/:id', verifyToken, isAdmin, deleteExpense);
+router.post('/', verifyToken, createExpense);
+router.delete('/:id', verifyToken, deleteExpense);
 
 export default router;

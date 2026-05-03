@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../utils/api';
 
 export default function Reports() {
   const [sales, setSales] = useState([]);
@@ -30,10 +31,8 @@ export default function Reports() {
 
   const fetchSales = async () => {
     try {
-      const response = await fetch('/api/sales', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('nexus_token')}` }
-      });
-      setSales(await response.json());
+      const data = await apiFetch('/api/sales');
+      setSales(data);
     } catch (error) {
       console.error('Error fetching sales:', error);
     } finally {
@@ -67,7 +66,7 @@ export default function Reports() {
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
 
       const tableData = filteredSales.map((sale: any) => [
-        sale.id,
+        `#${String(sale.id).padStart(4, '0')}`,
         new Date(sale.created_at).toLocaleDateString(),
         sale.customer_name || 'Walk-in',
         sale.staff_name || 'Unknown',
@@ -233,7 +232,7 @@ export default function Reports() {
             <tbody className="divide-y divide-slate-100">
               {filteredSales.map((sale: any) => (
                 <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-indigo-600">#{sale.id}</td>
+                  <td className="px-6 py-4 font-bold text-indigo-600">#{String(sale.id).padStart(4, '0')}</td>
                   <td className="px-6 py-4 text-slate-600">{new Date(sale.created_at).toLocaleDateString()}</td>
                   <td className="px-6 py-4 text-slate-900">{sale.customer_name || 'Walk-in'}</td>
                   <td className="px-6 py-4 text-slate-600">{sale.staff_name}</td>

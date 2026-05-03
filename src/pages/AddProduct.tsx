@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, ArrowLeft, Save, ScanLine, X } from 'lucide-react';
+import { Package, ArrowLeft, Save, ScanLine, X, Plus } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { apiFetch } from '../utils/api';
 
@@ -15,6 +15,8 @@ export default function AddProduct() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' });
 
   useEffect(() => {
     const storedUser = localStorage.getItem('nexus_user');
@@ -112,6 +114,23 @@ export default function AddProduct() {
     }
   };
 
+  const handleCategorySubmit = async (e: any) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/categories', {
+        method: 'POST',
+        body: JSON.stringify(newCategory)
+      });
+      setNewCategory({ name: '', description: '' });
+      setIsCategoryModalOpen(false);
+      fetchCategories();
+      alert('Category added successfully!');
+    } catch (error: any) {
+      console.error('Error adding category:', error);
+      alert(error.message || 'Failed to add category');
+    }
+  };
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
@@ -134,7 +153,7 @@ export default function AddProduct() {
       });
 
       const successMsg = targetId 
-        ? 'Product updated successfully!' 
+        ? (isAdmin ? 'Product updated successfully!' : 'Product updating and pending admin approval!')
         : (isAdmin ? 'Product added successfully!' : 'Product added and pending admin approval!');
       
       alert(successMsg);
@@ -209,16 +228,26 @@ export default function AddProduct() {
             
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Category</label>
-              <select 
-                name="category_id"
-                defaultValue={product?.category_id}
-                className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                <option value="">-- Select Category --</option>
-                {categories.map((cat: any) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select 
+                  name="category_id"
+                  defaultValue={product?.category_id}
+                  className="flex-1 px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                  title="Add New Category"
+                >
+                  <Plus size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -325,6 +354,48 @@ export default function AddProduct() {
                 Point your camera at a barcode to scan.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Add Category</h2>
+              <button onClick={() => setIsCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleCategorySubmit} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Category Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Description</label>
+                <textarea 
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                ></textarea>
+              </div>
+              <div className="flex justify-end pt-4">
+                <button 
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700"
+                >
+                  Save Category
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

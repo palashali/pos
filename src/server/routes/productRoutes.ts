@@ -21,8 +21,8 @@ router.get('/:id', verifyToken, getProduct);
 router.get('/:id/history', verifyToken, getProductHistory);
 router.post('/', verifyToken, upload.single('image'), createProduct);
 router.post('/:id/approve', verifyToken, isAdmin, approveProduct);
-router.put('/:id', verifyToken, isAdmin, upload.single('image'), updateProduct);
-router.post('/:id/adjust-stock', verifyToken, isAdmin, adjustStock);
+router.put('/:id', verifyToken, upload.single('image'), updateProduct);
+router.post('/:id/adjust-stock', verifyToken, adjustStock);
 router.delete('/:id', verifyToken, isAdmin, deleteProduct);
 
 export default router;

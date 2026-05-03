@@ -53,7 +53,7 @@ export default function POS() {
   const fetchData = async () => {
     try {
       const [prodData, custData] = await Promise.all([
-        apiFetch('/api/products?approved_only=true'),
+        apiFetch('/api/products'),
         apiFetch('/api/customers')
       ]);
       setProducts(prodData);
@@ -226,9 +226,9 @@ export default function POS() {
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex gap-6">
+    <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row gap-6 overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
       {/* Left: Product Selection */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 min-h-[500px] lg:min-h-0">
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -276,8 +276,8 @@ export default function POS() {
       </div>
 
       {/* Right: Cart & Checkout */}
-      <div className="w-96 flex flex-col gap-4">
-        <div className="flex-1 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+      <div className="w-full lg:w-96 flex flex-col gap-4">
+        <div className="flex-1 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden min-h-[400px] lg:min-h-0">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="font-bold text-slate-900 flex items-center gap-2">
               <ShoppingCart size={20} className="text-indigo-600" />
@@ -481,7 +481,7 @@ export default function POS() {
                 <p>Tel: {settings?.phone || '+1 234 567 890'}</p>
               </div>
               <div className="border-t border-dashed border-slate-300 py-4 space-y-1">
-                <p>Receipt #: {lastSale.id}</p>
+                <p>Receipt #: {String(lastSale.id).padStart(4, '0')}</p>
                 <p>Date: {new Date(lastSale.created_at).toLocaleString()}</p>
                 <p>Staff: {lastSale.staff_name}</p>
                 <p>Customer: {lastSale.customer_name || 'Walk-in'}</p>

@@ -1,11 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const db = new Database(path.join(__dirname, '../../database.sqlite'));
+const dbPath = path.join(process.env.NODE_ENV === 'production' ? '/tmp' : process.cwd(), 'database.sqlite');
+const db = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
@@ -108,13 +105,22 @@ db.exec(`
     description TEXT,
     month TEXT,
     date DATE DEFAULT CURRENT_DATE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   );
 `);
 
 // Migration: Add month to expenses if it doesn't exist
 try {
   db.prepare('ALTER TABLE expenses ADD COLUMN month TEXT').run();
+} catch (e) {
+  // Column already exists
+}
+
+// Migration: Add user_id to expenses if it doesn't exist
+try {
+  db.prepare('ALTER TABLE expenses ADD COLUMN user_id INTEGER').run();
 } catch (e) {
   // Column already exists
 }
@@ -139,6 +145,13 @@ try {
   db.prepare('ALTER TABLE products ADD COLUMN added_by INTEGER').run();
 } catch (e) {
   // Columns already exist
+}
+
+// Migration: Add approval_type to products
+try {
+  db.prepare("ALTER TABLE products ADD COLUMN approval_type TEXT DEFAULT 'Add Product'").run();
+} catch (e) {
+  // Column already exists
 }
 
 // Migration: Add cost_price and price to stock_logs
