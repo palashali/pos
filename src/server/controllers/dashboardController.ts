@@ -3,22 +3,44 @@ import db from '../db';
 export const getStats = (req: any, res: any) => {
   const today = new Date().toISOString().split('T')[0];
   
-  let salesQuery = "SELECT SUM(final_amount) as total FROM sales WHERE date(created_at) = ?";
-  let salesParams: any[] = [today];
+  let salesQuery = `
+    SELECT (
+      (SELECT COALESCE(SUM(final_amount), 0) FROM sales WHERE date(created_at) = ?) -
+      (SELECT COALESCE(SUM(refund_amount), 0) FROM sale_returns WHERE date(created_at) = ?)
+    ) as total
+  `;
+  let salesParams: any[] = [today, today];
   if (req.user && req.user.role === 'staff') {
-    salesQuery = "SELECT SUM(final_amount) as total FROM sales WHERE date(created_at) = ? AND user_id = ?";
-    salesParams.push(req.user.id);
+    salesQuery = `
+      SELECT (
+        (SELECT COALESCE(SUM(final_amount), 0) FROM sales WHERE date(created_at) = ? AND user_id = ?) -
+        (SELECT COALESCE(SUM(refund_amount), 0) FROM sale_returns WHERE date(created_at) = ? AND user_id = ?)
+      ) as total
+    `;
+    salesParams = [today, req.user.id, today, req.user.id];
   }
   const totalSalesToday = db.prepare(salesQuery).get(...salesParams) as any;
 
   let monthlySalesQuery = `
-    SELECT strftime('%Y-%m', created_at) as month, SUM(final_amount) as total 
-    FROM sales 
+    SELECT month, SUM(net_amount) as total
+    FROM (
+      SELECT strftime('%Y-%m', created_at) as month, final_amount as net_amount FROM sales
+      UNION ALL
+      SELECT strftime('%Y-%m', created_at) as month, -refund_amount as net_amount FROM sale_returns
+    )
   `;
   let monthlySalesParams: any[] = [];
+  // Note: union filter by user_id needs more complex query
   if (req.user && req.user.role === 'staff') {
-    monthlySalesQuery += ` WHERE user_id = ? `;
-    monthlySalesParams.push(req.user.id);
+    monthlySalesQuery = `
+      SELECT month, SUM(net_amount) as total
+      FROM (
+        SELECT strftime('%Y-%m', created_at) as month, final_amount as net_amount FROM sales WHERE user_id = ?
+        UNION ALL
+        SELECT strftime('%Y-%m', created_at) as month, -refund_amount as net_amount FROM sale_returns WHERE user_id = ?
+      )
+    `;
+    monthlySalesParams = [req.user.id, req.user.id];
   }
   monthlySalesQuery += `
     GROUP BY month 
@@ -39,9 +61,11 @@ export const getStats = (req: any, res: any) => {
   const lowStockCount = db.prepare("SELECT COUNT(*) as count FROM products WHERE stock <= low_stock_threshold AND is_approved = 1").get() as any;
   
   let pendingApprovals = 0;
-  if (req.user && req.user.role === 'admin') {
-    const pending = db.prepare("SELECT COUNT(*) as count FROM products WHERE is_approved = 0").get() as any;
-    pendingApprovals = pending.count;
+  if (req.user && req.user.role?.toLowerCase() === 'admin') {
+    const productsPending = db.prepare("SELECT COUNT(*) as count FROM products WHERE is_approved = 0").get() as any;
+    const adjustmentsPending = db.prepare("SELECT COUNT(*) as count FROM stock_adjustments WHERE status = 'Pending'").get() as any;
+    const returnsPending = db.prepare("SELECT COUNT(*) as count FROM sale_returns WHERE status = 'Pending'").get() as any;
+    pendingApprovals = productsPending.count + adjustmentsPending.count + returnsPending.count;
   }
   
   // Monthly expenses for comparison

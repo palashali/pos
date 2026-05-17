@@ -21,20 +21,20 @@ export default function AddProduct() {
   useEffect(() => {
     const storedUser = localStorage.getItem('nexus_user');
     if (storedUser) setUser(JSON.parse(storedUser));
-    fetchCategories();
+    loadCategories();
     if (id) {
-      fetchProduct(id);
+      loadProduct(id);
     }
   }, [id]);
 
   const isAdmin = user?.role === 'admin';
 
-  const fetchProduct = async (productId: string) => {
+  const loadProduct = async (productId: string) => {
     try {
       const data = await apiFetch(`/api/products/${productId}`);
       setProduct(data);
     } catch (error) {
-      console.error('Error fetching product:', error);
+      console.error('Error loading product:', error);
     }
   };
 
@@ -105,12 +105,12 @@ export default function AddProduct() {
     setBarcodeInput(e.target.value);
   };
 
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
       const data = await apiFetch('/api/categories');
       setCategories(data);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Error loading categories:', error);
     }
   };
 

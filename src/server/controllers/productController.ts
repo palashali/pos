@@ -37,17 +37,40 @@ export const getProductByBarcode = (req: any, res: any) => {
 };
 
 export const createProduct = (req: any, res: any) => {
-  const { name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold } = req.body;
+  const { name, category_id, description, price, cost_price, stock, low_stock_threshold } = req.body;
+  let { barcode } = req.body;
+  const normalized_category_id = category_id === '' || category_id === 'null' ? null : category_id;
   const image_url = req.file ? `/uploads/${req.file.filename}` : null;
-  const is_approved = req.user.role === 'admin' ? 1 : 0;
+  const is_approved = req.user.role?.toLowerCase() === 'admin' ? 1 : 0;
   const added_by = req.user.id;
   const approval_type = 'Add Product';
 
   try {
+    // Auto-generate barcode if empty
+    if (!barcode || barcode === '') {
+      const now = new Date();
+      const year = now.getFullYear().toString();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const prefix = `${year}${month}`;
+      
+      const lastBarcode: any = db.prepare("SELECT barcode FROM products WHERE barcode LIKE ? AND length(barcode) = 10 ORDER BY barcode DESC LIMIT 1")
+        .get(`${prefix}%`);
+        
+      let sequence = 1;
+      if (lastBarcode && lastBarcode.barcode) {
+        const lastSeqStr = lastBarcode.barcode.slice(6);
+        const lastSeq = parseInt(lastSeqStr);
+        if (!isNaN(lastSeq)) {
+          sequence = lastSeq + 1;
+        }
+      }
+      barcode = `${prefix}${sequence.toString().padStart(4, '0')}`;
+    }
+
     const result = db.prepare(`
       INSERT INTO products (name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by, approval_type)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by, approval_type);
+    `).run(name, normalized_category_id, barcode, description, price, cost_price, stock, low_stock_threshold, image_url, is_approved, added_by, approval_type);
 
     // Log initial stock
     if (stock > 0) {
@@ -70,19 +93,20 @@ export const createProduct = (req: any, res: any) => {
 
 export const updateProduct = (req: any, res: any) => {
   const { name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold } = req.body;
+  const normalized_category_id = category_id === '' || category_id === 'null' ? null : category_id;
   const image_url = req.file ? `/uploads/${req.file.filename}` : undefined;
 
   try {
     const currentProduct: any = db.prepare('SELECT stock FROM products WHERE id = ?').get(req.params.id);
     
-    let is_approved_val = req.user.role === 'admin' ? 1 : 0;
+    let is_approved_val = req.user.role?.toLowerCase() === 'admin' ? 1 : 0;
     let approval_type_val = 'Edit Product';
     
     let query = `
       UPDATE products 
       SET name = ?, category_id = ?, barcode = ?, description = ?, price = ?, cost_price = ?, stock = ?, low_stock_threshold = ?, is_approved = ?, approval_type = ?
     `;
-    const params = [name, category_id, barcode, description, price, cost_price, stock, low_stock_threshold, is_approved_val, approval_type_val];
+    const params = [name, normalized_category_id, barcode, description, price, cost_price, stock, low_stock_threshold, is_approved_val, approval_type_val];
 
     if (image_url) {
       query += `, image_url = ?`;
@@ -123,7 +147,7 @@ export const adjustStock = (req: any, res: any) => {
     if (!currentProduct) return res.status(404).json({ message: 'Product not found' });
 
     const newStock = currentProduct.stock + Number(quantity);
-    const is_approved_val = req.user.role === 'admin' ? 1 : 0;
+    const is_approved_val = req.user.role?.toLowerCase() === 'admin' ? 1 : 0;
     const approval_type_val = 'Stock Adjustment';
     
     db.prepare('UPDATE products SET stock = ?, is_approved = ?, approval_type = ? WHERE id = ?').run(newStock, is_approved_val, approval_type_val, productId);

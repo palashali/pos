@@ -23,7 +23,7 @@ export default function POS() {
   const [discount, setDiscount] = useState(0);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', customer_code: '' });
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
@@ -36,21 +36,21 @@ export default function POS() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchData();
-    fetchSettings();
+    loadData();
+    loadSettings();
     barcodeInputRef.current?.focus();
   }, []);
 
-  const fetchSettings = async () => {
+  const loadSettings = async () => {
     try {
       const data = await apiFetch('/api/settings');
       setSettings(data);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error loading settings:', error);
     }
   };
 
-  const fetchData = async () => {
+  const loadData = async () => {
     try {
       const [prodData, custData] = await Promise.all([
         apiFetch('/api/products'),
@@ -59,7 +59,7 @@ export default function POS() {
       setProducts(prodData);
       setCustomers(custData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error loading data:', error);
     }
   };
 
@@ -143,7 +143,7 @@ export default function POS() {
       setDiscount(0);
       setIsCheckoutModalOpen(false);
       setIsReceiptModalOpen(true);
-      fetchData(); // Refresh stock
+      loadData(); // Refresh stock
     } catch (error) {
       console.error('Checkout error:', error);
     }
@@ -161,12 +161,14 @@ export default function POS() {
         <head>
           <title>Print Receipt</title>
           <style>
-            body { font-family: 'Courier New', Courier, monospace; padding: 20px; font-size: 12px; }
+            body { font-family: sans-serif; padding: 10px; font-size: 12px; line-height: 1.4; color: #000; }
             .text-center { text-align: center; }
             .font-bold { font-weight: bold; }
             .uppercase { text-transform: uppercase; }
+            .mb-2 { margin-bottom: 0.5rem; }
             .mb-4 { margin-bottom: 1rem; }
             .mb-6 { margin-bottom: 1.5rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
             .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
             .border-t { border-top: 1px dashed #000; }
             .border-b { border-bottom: 1px dashed #000; }
@@ -174,12 +176,15 @@ export default function POS() {
             .flex { display: flex; }
             .justify-between { justify-content: space-between; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 4px 0; text-align: left; }
+            th, td { padding: 4px 0; text-align: left; vertical-align: top; }
             .text-right { text-align: right; }
+            .shop-title { font-size: 16px; margin-bottom: 2px; word-break: break-word; }
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          <div class="receipt">
+            ${printContent.innerHTML.replace('text-xl', 'shop-title')}
+          </div>
           <script>
             window.onload = function() {
               window.print();
@@ -218,7 +223,7 @@ export default function POS() {
       setCustomers([...customers, result] as any);
       setSelectedCustomer(result);
       setIsAddCustomerModalOpen(false);
-      setNewCustomer({ name: '', phone: '', email: '' });
+      setNewCustomer({ name: '', phone: '', email: '', customer_code: '' });
     } catch (error: any) {
       console.error('Error adding customer:', error);
       alert(error.message || 'Failed to add customer');
@@ -377,7 +382,7 @@ export default function POS() {
                   onChange={(e) => setSelectedCustomer(customers.find((c: any) => c.id === Number(e.target.value)))}
                 >
                   <option value="">Walk-in Customer</option>
-                  {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.customer_code ? `[${c.customer_code}]` : ''} ({c.phone})</option>)}
                 </select>
               </div>
 
@@ -429,6 +434,16 @@ export default function POS() {
             </div>
             <form onSubmit={handleAddCustomer} className="p-6 space-y-4">
               <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Customer ID / Code (Optional)</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                  placeholder="Leave empty to auto-generate"
+                  value={newCustomer.customer_code}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, customer_code: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Customer Name *</label>
                 <input 
                   type="text" 
@@ -476,7 +491,7 @@ export default function POS() {
             </div>
             <div id="receipt-content" className="flex-1 overflow-y-auto p-8 font-mono text-sm">
               <div className="text-center mb-6">
-                <h1 className="text-xl font-bold uppercase">{settings?.shop_name || 'NEXUS POS PRO'}</h1>
+                <h1 className="text-xl font-bold uppercase">{settings?.shop_name || 'Feha Moon Collection'}</h1>
                 <p>{settings?.address || '123 Business Street, Tech City'}</p>
                 <p>Tel: {settings?.phone || '+1 234 567 890'}</p>
               </div>
@@ -485,6 +500,8 @@ export default function POS() {
                 <p>Date: {new Date(lastSale.created_at).toLocaleString()}</p>
                 <p>Staff: {lastSale.staff_name}</p>
                 <p>Customer: {lastSale.customer_name || 'Walk-in'}</p>
+                {lastSale.customer_code && <p>Customer ID: {lastSale.customer_code}</p>}
+                {lastSale.customer_phone && <p>Phone: {lastSale.customer_phone}</p>}
               </div>
               <div className="border-t border-dashed border-slate-300 py-4">
                 <table className="w-full">

@@ -1,48 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Phone, Mail, MapPin, History, X } from 'lucide-react';
+import { Search, UserPlus, Phone, Mail, MapPin, History, X, Edit } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [history, setHistory] = useState([]);
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '', customer_code: '' });
 
   useEffect(() => {
-    fetchCustomers();
+    loadCustomers();
   }, []);
 
-  const fetchCustomers = async () => {
+  const handleOpenModal = (customer?: any) => {
+    if (customer) {
+      setIsEditMode(true);
+      setFormData({
+        name: customer.name,
+        email: customer.email || '',
+        phone: customer.phone || '',
+        address: customer.address || '',
+        customer_code: customer.customer_code || ''
+      });
+    } else {
+      setIsEditMode(false);
+      setFormData({ name: '', email: '', phone: '', address: '', customer_code: '' });
+    }
+    setIsModalOpen(true);
+  };
+
+  const loadCustomers = async () => {
     try {
       const data = await apiFetch('/api/customers');
       setCustomers(data);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('Error loading customers:', error);
     }
   };
 
-  const fetchHistory = async (customerId: number) => {
+  const loadHistory = async (customerId: number) => {
     try {
       const data = await apiFetch(`/api/customers/${customerId}/history`);
       setHistory(data);
     } catch (error) {
-      console.error('Error fetching history:', error);
+      console.error('Error loading history:', error);
     }
   };
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-
     try {
-      await apiFetch('/api/customers', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
+      if (isEditMode && selectedCustomer) {
+        const updated = await apiFetch(`/api/customers/${selectedCustomer.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(formData)
+        });
+        setSelectedCustomer(updated);
+      } else {
+        await apiFetch('/api/customers', {
+          method: 'POST',
+          body: JSON.stringify(formData)
+        });
+      }
       setIsModalOpen(false);
-      fetchCustomers();
+      loadCustomers();
     } catch (error: any) {
       console.error('Error saving customer:', error);
       alert(error.message || 'Failed to save customer');
@@ -59,7 +83,7 @@ export default function Customers() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Customer Management</h1>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleOpenModal()}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
         >
           <UserPlus size={20} />
@@ -88,14 +112,21 @@ export default function Customers() {
               <div 
                 key={customer.id} 
                 className={`bg-white p-6 rounded-2xl border transition-all cursor-pointer ${selectedCustomer?.id === customer.id ? 'border-indigo-600 ring-2 ring-indigo-500/10' : 'border-slate-100 hover:border-indigo-200'}`}
-                onClick={() => { setSelectedCustomer(customer); fetchHistory(customer.id); }}
+                onClick={() => { setSelectedCustomer(customer); loadHistory(customer.id); }}
               >
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">
                     {customer.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900">{customer.name}</h3>
+                    <div className="flex items-center gap-2">
+                       <h3 className="font-bold text-slate-900">{customer.name}</h3>
+                       {customer.customer_code && (
+                         <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-mono rounded">
+                           {customer.customer_code}
+                         </span>
+                       )}
+                    </div>
                     <p className="text-xs text-slate-500">Member since {new Date(customer.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -116,7 +147,14 @@ export default function Customers() {
         <div className="space-y-6">
           {selectedCustomer ? (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden sticky top-6">
-              <div className="p-6 bg-indigo-600 text-white">
+              <div className="p-6 bg-indigo-600 text-white relative">
+                <button 
+                  onClick={() => handleOpenModal(selectedCustomer)}
+                  className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  title="Edit Customer"
+                >
+                  <Edit size={18} />
+                </button>
                 <h3 className="text-xl font-bold">{selectedCustomer.name}</h3>
                 <p className="text-indigo-100 text-sm">Customer Profile</p>
               </div>
@@ -168,25 +206,57 @@ export default function Customers() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Add New Customer</h2>
+              <h2 className="text-xl font-bold text-slate-900">{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Customer ID / Code (Optional)</label>
+                <input 
+                  name="customer_code" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                  placeholder="Leave empty to auto-generate"
+                  value={formData.customer_code}
+                  onChange={(e) => setFormData({ ...formData, customer_code: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Full Name</label>
-                <input name="name" required className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                <input 
+                  name="name" 
+                  required 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Email Address</label>
-                <input name="email" type="email" className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                <input 
+                  name="email" 
+                  type="email" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Phone Number</label>
-                <input name="phone" className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                <input 
+                  name="phone" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Address</label>
-                <textarea name="address" className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 h-24" />
+                <textarea 
+                  name="address" 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 h-24"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-xl border border-slate-200 text-slate-600">Cancel</button>

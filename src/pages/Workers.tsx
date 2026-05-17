@@ -11,10 +11,10 @@ export default function Workers() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchWorkers();
+    loadWorkers();
   }, []);
 
-  const fetchWorkers = async () => {
+  const loadWorkers = async () => {
     try {
       const data = await apiFetch('/api/workers');
       setWorkers(data);
@@ -70,7 +70,7 @@ export default function Workers() {
       });
 
       setIsModalOpen(false);
-      fetchWorkers();
+      loadWorkers();
     } catch (err: any) {
       setError(err.message || 'Operation failed');
     }
@@ -80,7 +80,7 @@ export default function Workers() {
     if (!confirm('Are you sure you want to remove this worker?')) return;
     try {
       await apiFetch(`/api/workers/${id}`, { method: 'DELETE' });
-      fetchWorkers();
+      loadWorkers();
     } catch (err: any) {
       alert(err.message || 'Failed to delete worker');
     }

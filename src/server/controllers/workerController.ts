@@ -11,7 +11,7 @@ export const createWorker = async (req: any, res: any) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = db.prepare('INSERT INTO users (name, email, password, role, image_url) VALUES (?, ?, ?, ?, ?)').run(
-      name, email, hashedPassword, role || 'staff', image_url
+      name, email, hashedPassword, (role || 'staff').toLowerCase(), image_url
     );
     res.json({ id: result.lastInsertRowid, message: 'Worker created successfully' });
   } catch (error: any) {
@@ -26,11 +26,11 @@ export const updateWorker = async (req: any, res: any) => {
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
       db.prepare('UPDATE users SET name = ?, email = ?, password = ?, role = ?, image_url = ? WHERE id = ?').run(
-        name, email, hashedPassword, role, image_url, id
+        name, email, hashedPassword, role.toLowerCase(), image_url, id
       );
     } else {
       db.prepare('UPDATE users SET name = ?, email = ?, role = ?, image_url = ? WHERE id = ?').run(
-        name, email, role, image_url, id
+        name, email, role.toLowerCase(), image_url, id
       );
     }
     res.json({ message: 'Worker updated successfully' });

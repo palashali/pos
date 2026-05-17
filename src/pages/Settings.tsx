@@ -23,13 +23,13 @@ export default function Settings({ user }: any) {
 
   useEffect(() => {
     if (isAdmin) {
-      fetchSettings();
+      loadSettings();
     } else {
       setLoading(false);
     }
   }, [isAdmin]);
 
-  const fetchSettings = async () => {
+  const loadSettings = async () => {
     try {
       const data = await apiFetch('/api/settings');
       setSettings({
@@ -38,7 +38,7 @@ export default function Settings({ user }: any) {
         discount_type: data.discount_type || 'fixed'
       });
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'nexus-pos-secret-key-2024';
+import { JWT_SECRET } from '../config';
 
 export const generateToken = (user: any) => {
   return jwt.sign(
@@ -27,7 +26,8 @@ export const verifyToken = (req: any, res: any, next: any) => {
 };
 
 export const isAdmin = (req: any, res: any, next: any) => {
-  if (req.user.role !== 'admin') {
+  const role = req.user?.role?.toLowerCase()?.trim();
+  if (role !== 'admin') {
     return res.status(403).json({ message: 'Access denied. Admin role required.' });
   }
   next();

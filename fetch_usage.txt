@@ -1,0 +1,92 @@
+src/pages/AddProduct.tsx:    fetchCategories();
+src/pages/AddProduct.tsx:      fetchProduct(id);
+src/pages/AddProduct.tsx:  const fetchProduct = async (productId: string) => {
+src/pages/AddProduct.tsx:      console.error('Error fetching product:', error);
+src/pages/AddProduct.tsx:  const fetchCategories = async () => {
+src/pages/AddProduct.tsx:      console.error('Error fetching categories:', error);
+src/pages/AddProduct.tsx:      fetchCategories();
+src/pages/SalesHistory.tsx:    fetchSales();
+src/pages/SalesHistory.tsx:    fetchSettings();
+src/pages/SalesHistory.tsx:    fetchWorkers();
+src/pages/SalesHistory.tsx:  const fetchWorkers = async () => {
+src/pages/SalesHistory.tsx:      console.error('Error fetching workers:', error);
+src/pages/SalesHistory.tsx:  const fetchSales = async () => {
+src/pages/SalesHistory.tsx:      console.error('Error fetching sales:', error);
+src/pages/SalesHistory.tsx:  const fetchSettings = async () => {
+src/pages/SalesHistory.tsx:      console.error('Error fetching settings:', error);
+src/pages/SalesHistory.tsx:  const fetchSaleDetails = async (id: number) => {
+src/pages/SalesHistory.tsx:      console.error('Error fetching sale details:', error);
+src/pages/SalesHistory.tsx:                      onClick={() => fetchSaleDetails(sale.id)}
+src/pages/POS.tsx:    fetchData();
+src/pages/POS.tsx:    fetchSettings();
+src/pages/POS.tsx:  const fetchSettings = async () => {
+src/pages/POS.tsx:      console.error('Error fetching settings:', error);
+src/pages/POS.tsx:  const fetchData = async () => {
+src/pages/POS.tsx:      console.error('Error fetching data:', error);
+src/pages/POS.tsx:      fetchData(); // Refresh stock
+src/pages/Settings.tsx:      fetchSettings();
+src/pages/Settings.tsx:  const fetchSettings = async () => {
+src/pages/Settings.tsx:      console.error('Error fetching settings:', error);
+src/pages/Customers.tsx:    fetchCustomers();
+src/pages/Customers.tsx:  const fetchCustomers = async () => {
+src/pages/Customers.tsx:      console.error('Error fetching customers:', error);
+src/pages/Customers.tsx:  const fetchHistory = async (customerId: number) => {
+src/pages/Customers.tsx:      console.error('Error fetching history:', error);
+src/pages/Customers.tsx:      fetchCustomers();
+src/pages/Customers.tsx:                onClick={() => { setSelectedCustomer(customer); fetchHistory(customer.id); }}
+src/pages/Products.tsx:      fetchData();
+src/pages/Products.tsx:      console.error('Error fetching history:', error);
+src/pages/Products.tsx:    fetchData();
+src/pages/Products.tsx:  const fetchData = async () => {
+src/pages/Products.tsx:      console.error('Error fetching data:', error);
+src/pages/Products.tsx:      fetchData();
+src/pages/Products.tsx:      fetchData();
+src/pages/Products.tsx:      fetchData();
+src/pages/Products.tsx:      fetchData();
+src/pages/Dashboard.tsx:    fetchStats();
+src/pages/Dashboard.tsx:  const fetchStats = async () => {
+src/pages/Dashboard.tsx:      console.error('Error fetching stats:', error);
+src/pages/Expenses.tsx:    fetchExpenses();
+src/pages/Expenses.tsx:    fetchWorkers();
+src/pages/Expenses.tsx:  const fetchWorkers = async () => {
+src/pages/Expenses.tsx:      console.error('Error fetching workers:', error);
+src/pages/Expenses.tsx:  const fetchExpenses = async () => {
+src/pages/Expenses.tsx:      console.error('Error fetching expenses:', error);
+src/pages/Expenses.tsx:      fetchExpenses();
+src/pages/Expenses.tsx:      fetchExpenses();
+src/pages/Reports.tsx:    fetchSales();
+src/pages/Reports.tsx:  const fetchSales = async () => {
+src/pages/Reports.tsx:      console.error('Error fetching sales:', error);
+src/pages/Workers.tsx:    fetchWorkers();
+src/pages/Workers.tsx:  const fetchWorkers = async () => {
+src/pages/Workers.tsx:      fetchWorkers();
+src/pages/Workers.tsx:      fetchWorkers();
+src/pages/Returns.tsx:    fetchHistory();
+src/pages/Returns.tsx:    fetchProducts();
+src/pages/Returns.tsx:    fetchSettings();
+src/pages/Returns.tsx:  const fetchSettings = async () => {
+src/pages/Returns.tsx:      console.error('Error fetching settings:', error);
+src/pages/Returns.tsx:  const fetchHistory = async () => {
+src/pages/Returns.tsx:      console.error('Error fetching history:', error);
+src/pages/Returns.tsx:  const fetchProducts = async () => {
+src/pages/Returns.tsx:      console.error('Error fetching products:', error);
+src/pages/Returns.tsx:      fetchHistory();
+src/pages/Returns.tsx:      alert(error.message || 'Failed to fetch return details');
+src/pages/Returns.tsx:      alert(error.message || 'Failed to fetch return details');
+src/pages/Returns.tsx:      fetchHistory();
+src/pages/Returns.tsx:      fetchHistory();
+src/pages/Returns.tsx:      fetchHistory();
+src/pages/StockAdjustments.tsx:    fetchAdjustments();
+src/pages/StockAdjustments.tsx:    fetchProducts();
+src/pages/StockAdjustments.tsx:  const fetchAdjustments = async () => {
+src/pages/StockAdjustments.tsx:      console.error('Error fetching adjustments:', error);
+src/pages/StockAdjustments.tsx:  const fetchProducts = async () => {
+src/pages/StockAdjustments.tsx:      console.error('Error fetching products:', error);
+src/pages/StockAdjustments.tsx:      fetchAdjustments();
+src/pages/StockAdjustments.tsx:      fetchAdjustments();
+src/App.tsx:      fetchSettings(token);
+src/App.tsx:      if (token) fetchSettings(token);
+src/App.tsx:  const fetchSettings = async (token: string) => {
+src/App.tsx:      console.error('Error fetching settings:', error);
+src/App.tsx:    fetchSettings(token);
+src/utils/api.ts:    const response = await fetch(url, { ...options, headers });

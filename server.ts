@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+
 import authRoutes from "./src/server/routes/authRoutes";
 import productRoutes from "./src/server/routes/productRoutes";
 import categoryRoutes from "./src/server/routes/categoryRoutes";
@@ -11,6 +12,10 @@ import dashboardRoutes from "./src/server/routes/dashboardRoutes";
 import settingRoutes from "./src/server/routes/settingRoutes";
 import workerRoutes from "./src/server/routes/workerRoutes";
 import expenseRoutes from "./src/server/routes/expenseRoutes";
+import returnRoutes from "./src/server/routes/returnRoutes";
+import stockAdjustmentRoutes from "./src/server/routes/stockAdjustmentRoutes";
+import locationRoutes from "./src/server/routes/locationRoutes";
+import supplierRoutes from "./src/server/routes/supplierRoutes";
 
 async function startServer() {
   const app = express();
@@ -36,6 +41,10 @@ async function startServer() {
   app.use("/api/settings", settingRoutes);
   app.use("/api/workers", workerRoutes);
   app.use("/api/expenses", expenseRoutes);
+  app.use("/api/returns", returnRoutes);
+  app.use("/api/stock-adjustments", stockAdjustmentRoutes);
+  app.use("/api/locations", locationRoutes);
+  app.use("/api/suppliers", supplierRoutes);
 
   // Handle 404 for API routes
   app.use("/api/*", (req, res) => {

@@ -52,17 +52,17 @@ export default function Dashboard() {
   useEffect(() => {
     const storedUser = localStorage.getItem('nexus_user');
     if (storedUser) setUser(JSON.parse(storedUser));
-    fetchStats();
+    loadStats();
   }, []);
 
   const isAdmin = user?.role === 'admin';
 
-  const fetchStats = async () => {
+  const loadStats = async () => {
     try {
       const data = await apiFetch('/api/dashboard/stats');
       setStats(data);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error loading stats:', error);
     } finally {
       setLoading(false);
     }

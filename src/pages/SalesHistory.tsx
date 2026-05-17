@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Printer, Eye, X, Calendar, Filter } from 'lucide-react';
+import { Search, Printer, Eye, X, Calendar, Filter, Users } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 export default function SalesHistory() {
@@ -8,38 +8,52 @@ export default function SalesHistory() {
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(null);
+  const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterStaff, setFilterStaff] = useState('all');
+  const [customDate, setCustomDate] = useState('');
+  const [workers, setWorkers] = useState([]);
 
   useEffect(() => {
-    fetchSales();
-    fetchSettings();
+    loadSales();
+    loadSettings();
+    loadWorkers();
   }, []);
 
-  const fetchSales = async () => {
+  const loadWorkers = async () => {
+    try {
+      const data = await apiFetch('/api/workers');
+      setWorkers(data);
+    } catch (error) {
+      console.error('Error loading workers:', error);
+    }
+  };
+
+  const loadSales = async () => {
     try {
       const data = await apiFetch('/api/sales');
       setSales(data);
     } catch (error) {
-      console.error('Error fetching sales:', error);
+      console.error('Error loading sales:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchSettings = async () => {
+  const loadSettings = async () => {
     try {
       const data = await apiFetch('/api/settings');
       setSettings(data);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error loading settings:', error);
     }
   };
 
-  const fetchSaleDetails = async (id: number) => {
+  const loadSaleDetails = async (id: number) => {
     try {
       const data = await apiFetch(`/api/sales/${id}`);
       setSelectedSale(data);
     } catch (error) {
-      console.error('Error fetching sale details:', error);
+      console.error('Error loading sale details:', error);
     }
   };
 
@@ -86,10 +100,40 @@ export default function SalesHistory() {
     printWindow.document.close();
   };
 
-  const filteredSales = sales.filter((s: any) => 
-    s.id.toString().includes(searchTerm) ||
-    (s.customer_name || 'Walk-in').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSales = sales.filter((s: any) => {
+    const matchesSearch = s.id.toString().includes(searchTerm) ||
+      (s.customer_name || 'Walk-in').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    const matchesStaff = filterStaff === 'all' || s.user_id.toString() === filterStaff;
+    if (!matchesStaff) return false;
+
+    if (filterPeriod === 'all') return true;
+
+    const saleDate = new Date(s.created_at);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    if (filterPeriod === 'today') {
+      return saleDate >= today;
+    } else if (filterPeriod === 'yesterday') {
+      return saleDate >= yesterday && saleDate < today;
+    } else if (filterPeriod === '7days') {
+      return saleDate >= last7Days;
+    } else if (filterPeriod === 'custom' && customDate) {
+      const selected = new Date(customDate);
+      const nextDay = new Date(selected);
+      nextDay.setDate(nextDay.getDate() + 1);
+      return saleDate >= selected && saleDate < nextDay;
+    }
+
+    return true;
+  });
 
   if (loading) return <div>Loading sales history...</div>;
 
@@ -99,8 +143,8 @@ export default function SalesHistory() {
         <h1 className="text-2xl font-bold text-slate-900">Sales History</h1>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-        <div className="relative flex-1">
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-4">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
@@ -109,6 +153,41 @@ export default function SalesHistory() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Filter size={20} className="text-slate-400" />
+          <select 
+            className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+            value={filterPeriod}
+            onChange={(e) => setFilterPeriod(e.target.value)}
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="custom">Custom Date</option>
+          </select>
+          {filterPeriod === 'custom' && (
+            <input 
+              type="date" 
+              className="px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Users size={20} className="text-slate-400" />
+          <select 
+            className="flex-1 md:flex-none px-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+            value={filterStaff}
+            onChange={(e) => setFilterStaff(e.target.value)}
+          >
+            <option value="all">All Staff</option>
+            {workers.map((w: any) => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -135,7 +214,7 @@ export default function SalesHistory() {
                   <td className="px-6 py-4 font-black">৳{sale.final_amount.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <button 
-                      onClick={() => fetchSaleDetails(sale.id)}
+                      onClick={() => loadSaleDetails(sale.id)}
                       className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                       title="View & Print"
                     >
@@ -157,7 +236,7 @@ export default function SalesHistory() {
               <button onClick={() => setSelectedSale(null)} className="text-slate-400"><X size={20} /></button>
             </div>
             
-            <div id="receipt-print-area" className="flex-1 overflow-y-auto p-8 font-mono text-sm">
+            <div id="receipt-print-area" className="flex-1 overflow-y-auto p-8 font-mono text-sm leading-tight text-black">
               <div className="text-center mb-6">
                 <h1 className="text-xl font-bold uppercase">{settings?.shop_name || 'NEXUS POS PRO'}</h1>
                 <p>{settings?.address || '123 Business Street, Tech City'}</p>
@@ -168,11 +247,13 @@ export default function SalesHistory() {
                 <p>Date: {new Date(selectedSale.created_at).toLocaleString()}</p>
                 <p>Staff: {selectedSale.staff_name}</p>
                 <p>Customer: {selectedSale.customer_name || 'Walk-in'}</p>
+                {selectedSale.customer_code && <p>Customer ID: {selectedSale.customer_code}</p>}
+                {selectedSale.customer_phone && <p>Phone: {selectedSale.customer_phone}</p>}
               </div>
               <div className="border-t border-dashed border-slate-300 py-4">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left">
+                    <tr className="text-left font-bold border-b border-dashed border-slate-200">
                       <th className="pb-2">Item</th>
                       <th className="pb-2 text-center">Qty</th>
                       <th className="pb-2 text-right">Price</th>
@@ -181,31 +262,38 @@ export default function SalesHistory() {
                   <tbody>
                     {selectedSale.items.map((item: any) => (
                       <tr key={item.id}>
-                        <td className="py-1">{item.product_name}</td>
-                        <td className="py-1 text-center">{item.quantity}</td>
-                        <td className="py-1 text-right">৳{item.subtotal.toFixed(2)}</td>
+                        <td className="py-1">
+                          <div className="font-bold">{item.product_name}</div>
+                          <div className="text-[10px] text-slate-500">
+                            {item.quantity} x ৳{(item.unit_price || 0).toFixed(2)}
+                          </div>
+                        </td>
+                        <td className="py-1 text-center font-bold">{item.quantity}</td>
+                        <td className="py-1 text-right font-bold">৳{item.subtotal.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="border-t border-dashed border-slate-300 py-4 space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Original Total</span>
                   <span>৳{selectedSale.total_amount.toFixed(2)}</span>
                 </div>
                 {selectedSale.tax > 0 && (
-                  <div className="flex justify-between">
-                    <span>VAT</span>
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>VAT Amount</span>
                     <span>৳{selectedSale.tax.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span>Discount</span>
-                  <span>-৳{selectedSale.discount.toFixed(2)}</span>
-                </div>
+                {selectedSale.discount > 0 && (
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>Discount Amount</span>
+                    <span>-৳{selectedSale.discount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-dashed border-slate-300">
-                  <span>TOTAL</span>
+                  <span>TOTAL SALES</span>
                   <span>৳{selectedSale.final_amount.toFixed(2)}</span>
                 </div>
               </div>

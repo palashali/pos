@@ -21,7 +21,8 @@ import {
   HardHat,
   History,
   Wallet,
-  Filter
+  Filter,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -37,6 +38,8 @@ import SalesHistory from './pages/SalesHistory';
 import Expenses from './pages/Expenses';
 import AddProduct from './pages/AddProduct';
 import Login from './pages/Login';
+import Returns from './pages/Returns';
+import StockAdjustments from './pages/StockAdjustments';
 import { apiFetch } from './utils/api';
 
 // Components
@@ -86,7 +89,7 @@ const Layout = ({ children, user, onLogout, shopName }: any) => {
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
                 <ShoppingCart size={24} />
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 truncate">{shopName || 'NexusPOS Pro'}</span>
+              <span className="text-xl font-bold tracking-tight text-slate-900 truncate">{shopName || 'Feha Moon Collection'}</span>
             </div>
             <button 
               className="lg:hidden p-2 text-slate-400 hover:text-slate-600 rounded-lg"
@@ -103,6 +106,8 @@ const Layout = ({ children, user, onLogout, shopName }: any) => {
             <SidebarItem icon={Plus} label="Add Product" to="/add-product" active={location.pathname === '/add-product'} onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarItem icon={Users} label="Customers" to="/customers" active={location.pathname === '/customers'} onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarItem icon={History} label="Sales History" to="/sales-history" active={location.pathname === '/sales-history'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={RotateCcw} label="Returns & Adjust" to="/returns" active={location.pathname === '/returns'} onClick={() => setIsMobileMenuOpen(false)} />
+            <SidebarItem icon={Filter} label="Stock Adjusts" to="/stock-adjustments" active={location.pathname === '/stock-adjustments'} onClick={() => setIsMobileMenuOpen(false)} />
             <SidebarItem icon={Wallet} label="Expenses" to="/expenses" active={location.pathname === '/expenses'} onClick={() => setIsMobileMenuOpen(false)} />
             {isAdmin && <SidebarItem icon={BarChart3} label="Reports" to="/reports" active={location.pathname === '/reports'} onClick={() => setIsMobileMenuOpen(false)} />}
             {isAdmin && <SidebarItem icon={HardHat} label="Workers" to="/workers" active={location.pathname === '/workers'} onClick={() => setIsMobileMenuOpen(false)} />}
@@ -178,13 +183,13 @@ export default function App() {
     const token = localStorage.getItem('nexus_token');
     if (storedUser && token) {
       setUser(JSON.parse(storedUser));
-      fetchSettings(token);
+      loadSettings(token);
     }
     setLoading(false);
 
     const handleSettingsUpdate = () => {
       const token = localStorage.getItem('nexus_token');
-      if (token) fetchSettings(token);
+      if (token) loadSettings(token);
     };
 
     const handleAuthError = () => {
@@ -199,12 +204,12 @@ export default function App() {
     };
   }, []);
 
-  const fetchSettings = async (token: string) => {
+  const loadSettings = async (token: string) => {
     try {
       const data = await apiFetch('/api/settings');
       setShopName(data.shop_name);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error loading settings:', error);
     }
   };
 
@@ -212,7 +217,7 @@ export default function App() {
     localStorage.setItem('nexus_user', JSON.stringify(userData));
     localStorage.setItem('nexus_token', token);
     setUser(userData);
-    fetchSettings(token);
+    loadSettings(token);
   };
 
   const handleLogout = () => {
@@ -246,6 +251,8 @@ export default function App() {
                   <Route path="/pos" element={<POS />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/sales-history" element={<SalesHistory />} />
+                  <Route path="/returns" element={<Returns />} />
+                  <Route path="/stock-adjustments" element={<StockAdjustments />} />
                   
                   {/* Admin Only Routes */}
                   <Route path="/reports" element={isAdmin ? <Reports /> : <Navigate to="/" />} />

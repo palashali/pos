@@ -32,25 +32,25 @@ export default function Expenses() {
   ];
 
   useEffect(() => {
-    fetchExpenses();
-    fetchWorkers();
+    loadExpenses();
+    loadWorkers();
   }, []);
 
-  const fetchWorkers = async () => {
+  const loadWorkers = async () => {
     try {
       const data = await apiFetch('/api/workers');
       setWorkers(data);
     } catch (error) {
-      console.error('Error fetching workers:', error);
+      console.error('Error loading workers:', error);
     }
   };
 
-  const fetchExpenses = async () => {
+  const loadExpenses = async () => {
     try {
       const data = await apiFetch('/api/expenses');
       setExpenses(data);
     } catch (error) {
-      console.error('Error fetching expenses:', error);
+      console.error('Error loading expenses:', error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function Expenses() {
         date: new Date().toISOString().split('T')[0],
         worker_id: ''
       });
-      fetchExpenses();
+      loadExpenses();
     } catch (error) {
       console.error('Error creating expense:', error);
     }
@@ -89,7 +89,7 @@ export default function Expenses() {
         method: 'DELETE'
       });
       setDeleteConfirmId(null);
-      fetchExpenses();
+      loadExpenses();
     } catch (error) {
       console.error('Error deleting expense:', error);
     }

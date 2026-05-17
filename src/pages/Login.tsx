@@ -40,7 +40,7 @@ export default function Login({ onLogin }: any) {
               <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <ShoppingCart size={32} />
               </div>
-              <h1 className="text-2xl font-black tracking-tight">NexusPOS Pro</h1>
+              <h1 className="text-2xl font-black tracking-tight">Feha Moon Collection</h1>
               <p className="text-indigo-100 text-sm mt-1">Management Portal Login</p>
             </div>
             {/* Decorative circles */}

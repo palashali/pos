@@ -6,9 +6,17 @@ export const getCustomers = (req: any, res: any) => {
 };
 
 export const createCustomer = (req: any, res: any) => {
-  const { name, email, phone, address } = req.body;
+  let { name, email, phone, address, customer_code } = req.body;
+  
+  // Auto-generate customer code if not provided
+  if (!customer_code) {
+    const lastCustomer = db.prepare('SELECT id FROM customers ORDER BY id DESC LIMIT 1').get() as any;
+    const nextId = (lastCustomer?.id || 0) + 1;
+    customer_code = `CUS-${String(nextId).padStart(4, '0')}`;
+  }
+
   try {
-    const result = db.prepare('INSERT INTO customers (name, email, phone, address) VALUES (?, ?, ?, ?)').run(name, email, phone, address);
+    const result = db.prepare('INSERT INTO customers (name, email, phone, address, customer_code) VALUES (?, ?, ?, ?, ?)').run(name, email, phone, address, customer_code);
     const newCustomer = db.prepare('SELECT * FROM customers WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(newCustomer);
   } catch (error: any) {
@@ -34,4 +42,17 @@ export const getCustomerHistory = (req: any, res: any) => {
 
   const sales = db.prepare(query).all(...params);
   res.json(sales);
+};
+
+export const updateCustomer = (req: any, res: any) => {
+  const { name, email, phone, address, customer_code } = req.body;
+  const { id } = req.params;
+  try {
+    db.prepare('UPDATE customers SET name = ?, email = ?, phone = ?, address = ?, customer_code = ? WHERE id = ?').run(name, email, phone, address, customer_code, id);
+    const updatedCustomer = db.prepare('SELECT * FROM customers WHERE id = ?').get(id);
+    if (!updatedCustomer) return res.status(404).json({ message: 'Customer not found' });
+    res.json(updatedCustomer);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
 };

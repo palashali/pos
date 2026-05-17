@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Plus, Trash2, Edit, Package, AlertCircle, ArrowUpDown, X, History } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Package, AlertCircle, ArrowUpDown, X, History, Printer } from 'lucide-react';
 import { apiFetch } from '../utils/api';
+import JsBarcode from 'jsbarcode';
 
 export default function Products() {
   const navigate = useNavigate();
@@ -22,11 +23,156 @@ export default function Products() {
   const [adjustingProduct, setAdjustingProduct] = useState<any>(null);
   const [stockAdjustment, setStockAdjustment] = useState({ quantity: '', reason: '' });
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
+  const [isBulkPrintModalOpen, setIsBulkPrintModalOpen] = useState(false);
+  const [bulkPrintItems, setBulkPrintItems] = useState<any[]>([]);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const [showPriceInLabels, setShowPriceInLabels] = useState(true);
+
+  const handleBulkPrint = () => {
+    if (bulkPrintItems.length === 0) {
+      alert('Please add some products to print labels.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Pop-up blocked! Please allow pop-ups for this site to print labels.');
+      return;
+    }
+
+    const labelsData: any[] = [];
+    
+    // Process each product in bulkPrintItems
+    for (const item of bulkPrintItems) {
+      if (!item.barcode) continue;
+      
+      const canvas = document.createElement('canvas');
+      try {
+        JsBarcode(canvas, item.barcode, {
+          format: "CODE128",
+          width: 2,
+          height: 40,
+          displayValue: true,
+          fontSize: 14,
+          background: "#ffffff",
+          lineColor: "#000000",
+          margin: 10
+        });
+        const barcodeDataUrl = canvas.toDataURL("image/png");
+        
+        for (let i = 0; i < item.printQuantity; i++) {
+          labelsData.push({
+            name: item.name,
+            price: item.price,
+            barcodeImg: barcodeDataUrl,
+            shopName: settings?.shop_name || 'Feha Moon Collection'
+          });
+        }
+      } catch (e) {
+        console.error('Barcode generation failed for:', item.name, e);
+      }
+    }
+
+    if (labelsData.length === 0) {
+      alert('No valid barcodes found to print.');
+      printWindow.close();
+      return;
+    }
+
+    const labelsHtml = labelsData.map(label => `
+      <div class="label">
+        <div class="shop-name">${label.shopName}</div>
+        <div class="product-name">${label.name}</div>
+        ${showPriceInLabels ? `<div class="price">Price: ৳${label.price.toFixed(2)}</div>` : ''}
+        <div class="barcode-container">
+          <img src="${label.barcodeImg}" />
+        </div>
+      </div>
+    `).join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Print Labels</title>
+          <style>
+            @media print {
+              @page { margin: 0; size: auto; }
+              body { margin: 0; padding: 0; }
+            }
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; margin: 0; }
+            .label-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, 60mm);
+              gap: 2mm;
+              justify-content: center;
+              background: white;
+              padding: 5mm;
+              min-height: 297mm;
+            }
+            .label {
+              width: 60mm;
+              height: 35mm;
+              border: 1px solid #eee;
+              padding: 5px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              box-sizing: border-box;
+              overflow: hidden;
+              background: white;
+            }
+            @media print {
+              body { background: white; padding: 0; }
+              .label-grid { padding: 0; gap: 0; border: none; display: block; }
+              .label { border: none; page-break-inside: avoid; page-break-after: always; margin: 0 auto; width: 60mm; height: 35mm; }
+            }
+            .shop-name { font-size: 7px; font-weight: bold; margin-bottom: 1px; text-transform: uppercase; line-height: 1.1; width: 100%; word-break: break-word; overflow: visible; }
+            .product-name { font-size: 9px; font-weight: bold; margin-bottom: 1px; line-height: 1.1; width: 100%; word-break: break-word; overflow: visible; }
+            .price { font-size: 10px; font-weight: bold; margin-bottom: 1px; }
+            .barcode-container { width: 100%; display: flex; justify-content: center; margin-top: 2px; }
+            .barcode-container img { max-width: 100%; height: auto; }
+          </style>
+        </head>
+        <body>
+          <div class="label-grid">${labelsHtml}</div>
+          <script>
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setIsBulkPrintModalOpen(false);
+  };
+
+  const addToBulkPrint = (product: any) => {
+    if (!product.barcode) {
+      alert('This product does not have a barcode.');
+      return;
+    }
+    const exists = bulkPrintItems.find(item => item.id === product.id);
+    if (exists) {
+      setBulkPrintItems(bulkPrintItems.map(item => 
+        item.id === product.id ? { ...item, printQuantity: item.printQuantity + 1 } : item
+      ));
+    } else {
+      setBulkPrintItems([...bulkPrintItems, { ...product, printQuantity: 1 }]);
+    }
+  };
 
   const handleApprove = async (id: number) => {
     try {
       await apiFetch(`/api/products/${id}/approve`, { method: 'POST' });
-      fetchData();
+      loadData();
     } catch (error: any) {
       alert(error.message || 'Failed to approve product');
     }
@@ -38,20 +184,34 @@ export default function Products() {
       setHistoryData(data);
       setIsHistoryModalOpen(true);
     } catch (error) {
-      console.error('Error fetching history:', error);
+      console.error('Error loading history:', error);
       alert('Failed to load product history');
     }
   };
 
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await apiFetch('/api/settings');
+        setSettings(data);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('nexus_user');
     if (storedUser) setUser(JSON.parse(storedUser));
-    fetchData();
+    loadData();
   }, []);
 
   const isAdmin = user?.role === 'admin';
 
-  const fetchData = async () => {
+  const loadData = async () => {
     try {
       const [prodData, catData] = await Promise.all([
         apiFetch('/api/products'),
@@ -60,7 +220,7 @@ export default function Products() {
       setProducts(prodData);
       setCategories(catData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error loading data:', error);
       alert('Error loading data. Please check your connection.');
     } finally {
       setLoading(false);
@@ -75,7 +235,7 @@ export default function Products() {
         body: JSON.stringify(newCategory)
       });
       setNewCategory({ name: '', description: '' });
-      fetchData();
+      loadData();
       alert('Category added successfully!');
     } catch (error: any) {
       console.error('Error adding category:', error);
@@ -89,7 +249,7 @@ export default function Products() {
       await apiFetch(`/api/categories/${id}`, {
         method: 'DELETE'
       });
-      fetchData();
+      loadData();
     } catch (error) {
       console.error('Error deleting category:', error);
     }
@@ -109,7 +269,7 @@ export default function Products() {
       setIsStockModalOpen(false);
       setAdjustingProduct(null);
       setStockAdjustment({ quantity: '', reason: '' });
-      fetchData();
+      loadData();
       
       if (!isAdmin) {
         alert('Stock adjustment submitted and pending admin approval!');
@@ -129,7 +289,7 @@ export default function Products() {
       await apiFetch(`/api/products/${id}`, {
         method: 'DELETE'
       });
-      fetchData();
+      loadData();
     } catch (error) {
       console.error('Error deleting product:', error);
     }
@@ -146,6 +306,13 @@ export default function Products() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-slate-900">Product Inventory</h1>
         <div className="flex gap-2">
+          <button 
+            onClick={() => setIsBulkPrintModalOpen(true)}
+            className="flex items-center justify-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors"
+          >
+            <Printer size={20} />
+            Label Print
+          </button>
           <button 
             onClick={() => setIsCategoryModalOpen(true)}
             className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors"
@@ -450,6 +617,146 @@ export default function Products() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Bulk Label Print Modal */}
+      {isBulkPrintModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Printer className="text-amber-500" />
+                Print Labels
+              </h2>
+              <button onClick={() => setIsBulkPrintModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+            </div>
+            
+            <div className="p-6 flex flex-col lg:flex-row gap-6 overflow-hidden">
+              {/* Product Selection Side */}
+              <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <input 
+                    type="text" 
+                    placeholder="Search products to add..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    value={modalSearchTerm}
+                    onChange={(e) => setModalSearchTerm(e.target.value)}
+                  />
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                  {products
+                    .filter((p: any) => 
+                      p.name.toLowerCase().includes(modalSearchTerm.toLowerCase()) || 
+                      p.barcode?.toLowerCase().includes(modalSearchTerm.toLowerCase())
+                    )
+                    .slice(0, 50).map((product: any) => (
+                    <div 
+                      key={product.id} 
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-indigo-300 cursor-pointer transition-all"
+                      onClick={() => addToBulkPrint(product)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                          {product.image_url ? <img src={product.image_url} className="w-full h-full object-cover" /> : <Package className="text-slate-400" size={16} />}
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-slate-900">{product.name}</div>
+                          <div className="text-[10px] text-slate-500">{product.barcode || 'No barcode'}</div>
+                        </div>
+                      </div>
+                      <Plus size={16} className="text-slate-400" />
+                    </div>
+                  ))}
+                  {products.length > 50 && <div className="text-center text-xs text-slate-400">Showing top 50 products. Use search to find more.</div>}
+                </div>
+              </div>
+
+              {/* Print List Side */}
+              <div className="w-full lg:w-96 flex flex-col gap-4 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="font-bold text-slate-900">Print Preview List</h3>
+                  <button 
+                    onClick={() => setBulkPrintItems([])}
+                    className="text-xs text-rose-500 hover:underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-2">
+                  {bulkPrintItems.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2 opacity-60">
+                      <Package size={40} />
+                      <p className="text-sm">No products added</p>
+                    </div>
+                  ) : (
+                    bulkPrintItems.map((item: any) => (
+                      <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                          <div className="font-bold text-sm text-slate-900 leading-tight">{item.name}</div>
+                          <button 
+                            onClick={() => setBulkPrintItems(bulkPrintItems.filter(i => i.id !== item.id))}
+                            className="text-slate-400 hover:text-rose-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Labels:</div>
+                          <div className="flex items-center gap-3">
+                            <button 
+                              onClick={() => setBulkPrintItems(bulkPrintItems.map(i => 
+                                i.id === item.id ? { ...i, printQuantity: Math.max(1, i.printQuantity - 1) } : i
+                              ))}
+                              className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                            >-</button>
+                            <span className="font-bold text-slate-900">{item.printQuantity}</span>
+                            <button 
+                              onClick={() => setBulkPrintItems(bulkPrintItems.map(i => 
+                                i.id === item.id ? { ...i, printQuantity: i.printQuantity + 1 } : i
+                              ))}
+                              className="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                            >+</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="flex items-center gap-2 mb-4 px-1">
+                    <input 
+                      type="checkbox" 
+                      id="showPriceToggle"
+                      checked={showPriceInLabels}
+                      onChange={(e) => setShowPriceInLabels(e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                    />
+                    <label htmlFor="showPriceToggle" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Show Price on Labels
+                    </label>
+                  </div>
+                  <div className="flex justify-between text-sm mb-4">
+                    <span className="text-slate-500">Total Labels:</span>
+                    <span className="font-bold text-slate-900">
+                      {bulkPrintItems.reduce((acc, item) => acc + item.printQuantity, 0)}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={handleBulkPrint}
+                    disabled={bulkPrintItems.length === 0}
+                    className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+                  >
+                    <Printer size={20} />
+                    Print Selected Labels
+                  </button>
+                </div>
               </div>
             </div>
           </div>
